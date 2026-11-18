@@ -1,6 +1,6 @@
 {
   "date": "2026-11-18",
-  "scope": "Highest-role audit log workspace with chronological table, filters, safe event details and mobile layout",
+  "scope": "Component: compact password-change card using Portal tokens and existing authenticated API",
   "framework": {
     "value": "React 19 / Vite 8 / Tailwind 4 / TypeScript",
     "source": "package.json"

@@ -7,11 +7,11 @@ import {
   useCallback,
   useRef,
   type ReactNode,
-  type FormEvent,
 } from "react";
 import { meSchema, type MeResponse } from "@lapnet/contracts";
 import { apiRequest, ApiError, setCsrfToken } from "../../lib/api";
 import { LoginPage, type LoginCredentials } from "@/components/ui/sign-in-page";
+import { PasswordChangeCard, type PasswordValues } from "@/components/ui/password-change-card";
 
 const errors: Record<string, string> = {
   AUTHENTICATION_REQUIRED: "ຊື່ຜູ້ໃຊ້ ຫຼື ລະຫັດຜ່ານບໍ່ຖືກຕ້ອງ ຫຼື ບັນຊີນີ້ບໍ່ສາມາດເຂົ້າໃຊ້ໄດ້.",
@@ -161,85 +161,46 @@ function SignIn({ onSuccess }: { onSuccess: (value: unknown) => void }) {
   return <LoginPage onSubmit={submit} error={error} />;
 }
 
-export function PasswordChange({embedded=false}:{embedded?:boolean}={}) {
+export function PasswordChange({ embedded = false }: { embedded?: boolean } = {}) {
   const { refresh } = useAuth();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [saved, setSaved] = useState(false);
-  async function submit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    const element = event.currentTarget;
-    const form = new FormData(element);
-    if (form.get("newPassword") !== form.get("confirmation")) {
-      setError("ລະຫັດຜ່ານທັງສອງບໍ່ກົງກັນ.");
-      return;
-    }
+  const pending = useRef(false);
+  async function submit(values: PasswordValues) {
+    if (pending.current) return false;
+    pending.current = true;
     setBusy(true);
     setError("");
+    setSaved(false);
     try {
       const result = await apiRequest("/auth/change-password", "POST", {
-        currentPassword: form.get("currentPassword"),
-        newPassword: form.get("newPassword"),
+        currentPassword: values.currentPassword,
+        newPassword: values.newPassword,
       });
       setCsrfToken(meSchema.parse(result).csrfToken);
       await refresh();
       setSaved(true);
-      element.reset();
+      return true;
     } catch (error) {
       setError(errorText(error));
+      return false;
     } finally {
+      pending.current = false;
       setBusy(false);
     }
   }
-  const content = (
-    <section className="panel auth-card">
-      {embedded?<h2>ປ່ຽນລະຫັດຜ່ານ</h2>:<h1>ບັນຊີຂອງຂ້ອຍ</h1>}
-      <p>ລະຫັດຜ່ານໃໝ່ຕ້ອງມີ 6–128 ຕົວອັກສອນ. ສາມາດໃຊ້ວະລີທີ່ຈື່ໄດ້ງ່າຍ.</p>
-      <form className="identity-form" onSubmit={submit}>
-        <label>
-          ລະຫັດຜ່ານປັດຈຸບັນ
-          <input
-            name="currentPassword"
-            type="password"
-            autoComplete="current-password"
-            maxLength={128}
-            required
-          />
-        </label>
-        <label>
-          ລະຫັດຜ່ານໃໝ່
-          <input
-            name="newPassword"
-            type="password"
-            autoComplete="new-password"
-            minLength={6}
-            maxLength={128}
-            required
-          />
-        </label>
-        <label>
-          ຢືນຢັນລະຫັດຜ່ານໃໝ່
-          <input
-            name="confirmation"
-            type="password"
-            autoComplete="new-password"
-            minLength={6}
-            maxLength={128}
-            required
-          />
-        </label>
-        {error && (
-          <p className="identity-error" role="alert">
-            {error}
-          </p>
-        )}
-        {saved && <p role="status">ປ່ຽນລະຫັດຜ່ານສຳເລັດແລ້ວ.</p>}
-        <button className="button primary" disabled={busy} aria-busy={busy}>
-          {busy && <Skeleton variant="inline" label="ກຳລັງບັນທຶກ..." />}
-          ບັນທຶກລະຫັດຜ່ານ
-        </button>
-      </form>
-    </section>
+  return (
+    <PasswordChangeCard
+      embedded={embedded}
+      pending={busy}
+      error={error}
+      success={saved}
+      onEdit={() => {
+        setError("");
+        setSaved(false);
+      }}
+      onSubmit={submit}
+    />
   );
-  return content;
 }

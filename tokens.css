@@ -1,3 +1,23 @@
+/* Password form: uses the existing Portal palette and typography. */
+:root {
+  --size-password-card: 44rem;
+  --size-password-target: 2.75rem;
+  --size-password-input: 3rem;
+  --space-password-small: 0.25rem;
+  --space-password-gap: 0.5rem;
+  --space-password-field-inset: 0.75rem;
+  --space-password-field: 1.25rem;
+  --space-password-section: 1.5rem;
+  --space-password-card: 1.5rem;
+  --space-password-card-mobile: 1.25rem;
+  --text-password-heading: 1.125rem;
+  --text-password-body: 0.875rem;
+  --text-password-input: 1rem;
+  --text-password-small: 0.75rem;
+  --duration-password-control: 120ms;
+  --ease-password-control: cubic-bezier(0.2, 0, 0, 1);
+  --opacity-password-disabled: 0.5;
+}
 /* Settings: profile cover and account-management cards. */
 :root {
   --z-image-studio: 400;

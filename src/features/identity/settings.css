@@ -183,10 +183,9 @@
   width: auto;
   margin: 0;
 }
-.settings-security .auth-card {
+.settings-security {
+  min-width: 0;
   width: 100%;
-  max-width: none;
-  margin: 0;
 }
 @media (max-width: 600px) {
   .settings-cover-actions {
