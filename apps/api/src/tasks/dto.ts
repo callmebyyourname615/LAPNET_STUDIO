@@ -100,6 +100,7 @@ export class TaskQuery extends PaginationQuery {
 export class TaskOptionsQuery extends PaginationQuery {
   @ApiPropertyOptional() @IsOptional() @IsString() @MaxLength(100) q?: string;
   @ApiPropertyOptional() @IsOptional() @IsUUID() taskId?: string;
+  @ApiPropertyOptional() @IsOptional() @IsUUID() departmentId?: string;
 }
 export class HistoryQuery extends PaginationQuery {
   @ApiPropertyOptional() @IsOptional() @Type(() => Number) @IsInt() @Min(1) before?: number;

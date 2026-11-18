@@ -12,6 +12,8 @@ import { apiRequest, ApiError } from "../../lib/api";
 import { errorText, useAuth } from "../identity/Auth";
 import { priorityNames } from "./api";
 import { t } from "../../i18n/lo";
+import { useTaskData } from "./api";
+import { TaskAssignmentPicker } from "./TaskAssignmentPicker";
 
 type Person = TaskOptions["users"][number];
 export function TaskEditor({
@@ -26,7 +28,13 @@ export function TaskEditor({
   onCancel: () => void;
 }) {
   const { me } = useAuth();
-  const self: Person = { id: me!.user.id, displayName: me!.user.displayName, status: "active" };
+  const self: Person = {
+    id: me!.user.id,
+    displayName: me!.user.displayName,
+    status: "active",
+    username: me!.user.username,
+    departments: me!.memberships.map(({ department }) => department),
+  };
   const [title, setTitle] = useState(task?.title ?? ""),
     [description, setDescription] = useState(task?.description ?? ""),
     [priority, setPriority] = useState<TaskWrite["priority"]>(task?.priority ?? "normal"),
@@ -39,58 +47,36 @@ export function TaskEditor({
   const [taggedDepartmentIds, setTaggedDepartments] = useState(
     task?.taggedDepartments.map((d) => d.id) ?? [],
   );
-  const [search, setSearch] = useState(""),
-    [options, setOptions] = useState<TaskOptions | null>(null),
-    [people, setPeople] = useState<Person[]>([
-      ...new Map(
-        [self, ...(task ? [task.assignee, ...task.collaborators] : [])].map((person) => [
-          person.id,
-          person,
-        ]),
-      ).values(),
-    ]);
+  const {
+    data: options,
+    error: optionsError,
+    loading,
+    reload,
+  } = useTaskData(
+    "/api/v1/tasks/options?limit=25" + (task ? "&taskId=" + task.id : ""),
+    taskOptionsSchema,
+  );
+  const [people, setPeople] = useState<Person[]>([
+    ...new Map(
+      [
+        self,
+        ...(task
+          ? [task.assignee, ...task.collaborators].map((person) => ({
+              ...person,
+              username: null,
+              departments: [],
+            }))
+          : []),
+      ].map((person) => [person.id, person]),
+    ).values(),
+  ]);
   const [error, setError] = useState(""),
-    [optionsError, setOptionsError] = useState(""),
     [busy, setBusy] = useState(false),
-    [loading, setLoading] = useState(true),
     [conflict, setConflict] = useState(false);
   const canShare = !task || task.permissions.manageTeam;
   useEffect(() => {
-    const controller = new AbortController();
-    setLoading(true);
-    setOptionsError("");
-    const timer = setTimeout(
-      () => {
-        const q = new URLSearchParams({
-          q: search,
-          limit: "25",
-          ...(task ? { taskId: task.id } : {}),
-        });
-        apiRequest("/api/v1/tasks/options?" + q, "GET", undefined, controller.signal)
-          .then((value) => {
-            if (controller.signal.aborted) return;
-            const result = taskOptionsSchema.parse(value);
-            setOptions(result);
-            setPeople((old) => [
-              ...new Map([...old, ...result.users].map((p) => [p.id, p])).values(),
-            ]);
-            setOptionsError("");
-            setDepartment((old) => old || result.departments[0]?.id || "");
-          })
-          .catch((e) => {
-            if (!controller.signal.aborted) setOptionsError(errorText(e));
-          })
-          .finally(() => {
-            if (!controller.signal.aborted) setLoading(false);
-          });
-      },
-      search ? 250 : 0,
-    );
-    return () => {
-      clearTimeout(timer);
-      controller.abort();
-    };
-  }, [search, task?.id]);
+    if (options) setDepartment((old) => old || options.departments[0]?.id || "");
+  }, [options]);
   async function submit(e: FormEvent) {
     e.preventDefault();
     if (busy || conflict) return;
@@ -129,15 +115,6 @@ export function TaskEditor({
         <Skeleton variant="form" />
       </section>
     );
-  const selected = new Set([assigneeId, ...collaboratorIds]);
-  const displayed = [
-    ...new Map(
-      [...people.filter((p) => selected.has(p.id)), ...(options?.users ?? [])].map((p) => [
-        p.id,
-        p,
-      ]),
-    ).values(),
-  ];
   return (
     <section className="panel task-editor">
       <div className="panel-heading">
@@ -222,100 +199,37 @@ export function TaskEditor({
             />
           </label>
         </div>
-        <label>
-          ຄົ້ນຫາຜູ້ໃຊ້
-          <input
-            type="search"
-            placeholder="ພິມຊື່ ຫຼື username ຢ່າງນ້ອຍ 2 ຕົວ"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            disabled={busy}
-          />
-        </label>
-        {loading && <Skeleton variant="card" rows={1} label="ກຳລັງຄົ້ນຫາ..." />}
         {optionsError && (
-          <p role="alert" className="identity-error">
-            {optionsError}
-          </p>
+          <div className="identity-error" role="alert">
+            <p>{optionsError}</p>
+            <button type="button" className="button secondary" onClick={reload}>
+              ລອງໃໝ່
+            </button>
+          </div>
         )}
-        <label>
-          ຜູ້ຮັບຜິດຊອບຫຼັກ
-          <select
-            aria-label="ຜູ້ຮັບຜິດຊອບຫຼັກ"
-            name="assigneeId"
-            value={assigneeId}
-            onChange={(e) => {
-              const value = e.currentTarget.value;
-              setAssignee(value);
-              setCollaborators((ids) => ids.filter((id) => id !== value));
-            }}
-            disabled={busy || !canShare}
-            required
-          >
-            {people.map((p) => (
-              <option key={p.id} value={p.id} disabled={p.status === "disabled"}>
-                {p.displayName}
-                {p.status === "disabled" ? " · ລະງັບແລ້ວ" : ""}
-              </option>
-            ))}
-          </select>
-        </label>
-        <fieldset className="task-choices">
-          <legend>ຜູ້ຮ່ວມວຽກ</legend>
-          {displayed
-            .filter((p) => p.id !== assigneeId)
-            .map((p) => (
-              <label key={p.id}>
-                <input
-                  type="checkbox"
-                  checked={collaboratorIds.includes(p.id)}
-                  disabled={busy || !canShare || p.status === "disabled"}
-                  onChange={(e) => {
-                    const checked = e.currentTarget.checked;
-                    setCollaborators((ids) =>
-                      checked ? [...ids, p.id] : ids.filter((id) => id !== p.id),
-                    );
-                  }}
-                />
-                {p.displayName}
-              </label>
-            ))}
-          {!displayed.some((p) => p.id !== assigneeId) && <p>ຄົ້ນຫາຜູ້ໃຊ້ເພື່ອເພີ່ມຜູ້ຮ່ວມວຽກ.</p>}
-        </fieldset>
-        <fieldset className="task-choices">
-          <legend>@tag ພະແນກເຂົ້າທີມ</legend>
-          {[
+        <TaskAssignmentPicker
+          value={{ assigneeId, collaboratorIds, taggedDepartmentIds }}
+          people={[
             ...new Map(
-              [...(options?.taggableDepartments ?? []), ...(task?.taggedDepartments ?? [])].map(
+              [...people, ...(options?.users ?? [])].map((person) => [person.id, person]),
+            ).values(),
+          ]}
+          departments={[
+            ...new Map(
+              [...(task?.taggedDepartments ?? []), ...(options?.taggableDepartments ?? [])].map(
                 (department) => [department.id, department],
               ),
             ).values(),
-          ].map((department) => (
-            <label key={department.id}>
-              <input
-                type="checkbox"
-                name="taggedDepartmentIds"
-                value={department.id}
-                checked={taggedDepartmentIds.includes(department.id)}
-                disabled={
-                  busy ||
-                  !canShare ||
-                  ("active" in department &&
-                    !department.active &&
-                    !taggedDepartmentIds.includes(department.id))
-                }
-                onChange={(event) =>
-                  setTaggedDepartments((current) =>
-                    event.target.checked
-                      ? [...current, department.id]
-                      : current.filter((id) => id !== department.id),
-                  )
-                }
-              />
-              {t(department.name)}
-            </label>
-          ))}
-        </fieldset>
+          ]}
+          taskId={task?.id}
+          disabled={busy || !canShare || !options}
+          onChange={(next, known) => {
+            setAssignee(next.assigneeId);
+            setCollaborators(next.collaboratorIds);
+            setTaggedDepartments(next.taggedDepartmentIds);
+            setPeople(known);
+          }}
+        />
         <p className="task-help">
           {canShare
             ? "ຄົນ ແລະ ສະມາຊິກພະແນກທີ່ເລືອກຈະເບິ່ງ, ປ່ຽນສະຖານະ ແລະ ຂຽນຄວາມຄືບໜ້າໄດ້ອັດຕະໂນມັດ. Host ເປັນຜູ້ຈັດການທີມ."

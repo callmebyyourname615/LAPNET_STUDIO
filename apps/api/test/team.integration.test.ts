@@ -5,7 +5,7 @@ import type { AddressInfo } from "node:net";
 import { createDatabase } from "@lapnet/database";
 import { createApplication } from "../src/app";
 import { hashPassword, randomSecret } from "../src/identity/password";
-import { taskSchema, taskPageSchema, commentsSchema } from "@lapnet/contracts";
+import { taskSchema, taskPageSchema, commentsSchema, taskOptionsSchema } from "@lapnet/contracts";
 import sharp from "sharp";
 
 test("Host and shared task team", { skip: !process.env.TEST_IDENTITY_DATABASE_URL }, async (t) => {
@@ -95,6 +95,52 @@ test("Host and shared task team", { skip: !process.env.TEST_IDENTITY_DATABASE_UR
     avatarPath = "";
   try {
     await t.test(
+      "Assignment directory browses, searches single characters and filters current divisions",
+      async () => {
+        const disabled = await db.user.create({
+          data: {
+            username: "disabled_assignment",
+            identitySubject: "disabled_assignment",
+            displayName: "Disabled assignment",
+            status: "disabled",
+            passwordHash,
+          },
+        });
+        await db.departmentMembership.create({
+          data: {
+            userId: person.id,
+            departmentId: department("IT"),
+            effectiveFrom: new Date(Date.now() + 86400000),
+          },
+        });
+        const first = taskOptionsSchema.parse(
+          (await request(hc, "/api/v1/tasks/options?limit=2")).value,
+        );
+        assert.equal(first.users.length, 2);
+        assert(first.nextCursor);
+        const second = taskOptionsSchema.parse(
+          (await request(hc, "/api/v1/tasks/options?limit=2&cursor=" + first.nextCursor)).value,
+        );
+        assert(!second.users.some((user) => first.users.some((before) => before.id === user.id)));
+        const searched = taskOptionsSchema.parse(
+          (await request(hc, "/api/v1/tasks/options?q=t")).value,
+        );
+        assert(searched.users.some((user) => user.id === person.id));
+        assert(!searched.users.some((user) => user.id === disabled.id));
+        assert.equal(searched.users.find((user) => user.id === host.id)!.username, host.username);
+        const filtered = taskOptionsSchema.parse(
+          (await request(hc, "/api/v1/tasks/options?departmentId=" + department("IT"))).value,
+        );
+        assert.deepEqual(
+          filtered.users.map((user) => user.id),
+          [member.id],
+        );
+        assert.equal(filtered.users[0].departments[0].code, "IT");
+        assert.equal((await request(hc, "/api/v1/tasks/options?departmentId=invalid")).status, 400);
+        assert.equal((await request(hc, "/api/v1/tasks/options?cursor=invalid")).status, 400);
+      },
+    );
+    await t.test(
       "Host selects people and departments without a separate consent flag",
       async () => {
         const response = await request(hc, "/api/v1/tasks", "POST", {
@@ -122,6 +168,7 @@ test("Host and shared task team", { skip: !process.env.TEST_IDENTITY_DATABASE_UR
         }
         for (const client of [nc, oc])
           assert.equal((await request(client, `/api/v1/tasks/${id}`)).status, 404);
+        assert.equal((await request(oc, `/api/v1/tasks/options?taskId=${id}`)).status, 404);
         assert.equal(
           await db.resourceGrant.count({
             where: { resourceId: id, source: "task_team", revokedAt: null },

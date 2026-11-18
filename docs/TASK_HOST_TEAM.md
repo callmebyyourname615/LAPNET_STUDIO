@@ -5,7 +5,7 @@
 ## ວິທີໃຊ້
 
 1. ກົດ **ສ້າງວຽກ**, ໃສ່ຫົວຂໍ້/ລາຍລະອຽດ ແລະເລືອກຜູ້ຮັບຜິດຊອບຫຼັກ. ຜູ້ສ້າງເປັນ Host.
-2. ຄົ້ນຫາເພື່ອເພີ່ມຜູ້ຮ່ວມວຽກ ຫຼືເລືອກ **@tag ພະແນກເຂົ້າທີມ**. ບັນທຶກແລ້ວເຂົ້າໃຊ້ຮ່ວມກັນໄດ້ເລີຍ; ບໍ່ຕ້ອງເລືອກ checkbox ແບ່ງປັນສິດອີກ.
+2. ກົດ **ຈັດການມອບໝາຍ**. Tab **ລາຍບຸກຄົນ** ຄົ້ນຫາຊື່/username, ກອງຕາມພະແນກ, ເລືອກ **ຫຼັກ** (ຜູ້ຮັບຜິດຊອບ) ຫຼື **ຮ່ວມ** (ຜູ້ຮ່ວມວຽກ). Tab **ລາຍພະແນກ** ເລືອກພະແນກເຂົ້າທີມ. ກົດ **ນຳໃຊ້ການເລືອກ** ແລ້ວ **ບັນທຶກວຽກ** ຈຶ່ງສົ່ງການມອບໝາຍຈິງ; Cancel/Escape ຍົກເລີກການເລືອກໃນ overlay. ການເລືອກພະແນກບໍ່ປ່ຽນຜູ້ຮັບຜິດຊອບຫຼັກ.
 3. ຄົນທີ່ເຊີນ ແລະສະມາຊິກປັດຈຸບັນຂອງພະແນກທີ່ tag ເຫັນວຽກໃນ **ວຽກຂອງຂ້ອຍ**. ປ່ຽນສະຖານະ, ແກ້ໄຂລາຍລະອຽດ ຫຼືເປີດ tab ຄວາມຄິດເຫັນເພື່ອ **ລາຍງານຄວາມຄືບໜ້າ**.
 4. Host ໃຊ້ **ຈັດການທີມ** ເພື່ອເພີ່ມ/ເອົາສະມາຊິກອອກ. Host ຍັງໃຊ້ @tag ຄົນ/ພະແນກໃນ comment ເພື່ອເຊີນເຂົ້າທີມໄດ້. ຜູ້ຮ່ວມວຽກທົ່ວໄປ @tag ຄົນທີ່ມີສິດຢູ່ແລ້ວເພື່ອແຈ້ງເຕືອນ; ໃຫ້ Host ເປັນຜູ້ເຊີນຄົນໃໝ່.
 
@@ -20,6 +20,8 @@ Timeline ໃຊ້ `src/components/ui/timeline-3.tsx`: avatar/ຕົວຫຍໍ
 ກວດ autocomplete ດ້ວຍ `pnpm test:mentions`; API/ACL ດ້ວຍ `pnpm test:team` ແລະ `pnpm test:account`. Browser ທົດສອບສອງບັນຊີ, ເລືອກ tag, ລຶບ tag, retry ແລະຈໍ 320/375/768px; ຫຼັກຖານ `output/playwright/task-mentions-avatar-results.json` ແລະ `.local/traces/task-mentions-avatar.zip` (ignored).
 
 ## ກົດສິດ ແລະ persistence
+
+- Assignment overlay ໃຊ້ Portal tokens ແລະ Radix Dialog (focus trap/restore, Escape, responsive). `GET /api/v1/tasks/options` ແສດງບັນຊີ active ທີ່ມີ username ໄດ້ທັນທີ, ຄົ້ນຫາຈາກ 1 ຕົວອັກສອນ, ມີ cursor/limit ≤25, `departmentId` ກອງຕາມ membership ປັດຈຸບັນ ແລະສົ່ງ username/ພະແນກເພື່ອແຍກຄົນຊື່ຄືກັນ. ເລືອກຜູ້ຮ່ວມວຽກ ≤25 ຄົນ ແລະ ≤25 ພະແນກ; ຜູ້ຮັບຜິດຊອບຫຼັກບໍ່ຊ້ຳກັບຜູ້ຮ່ວມວຽກ. API write ຍັງກວດ Host, account/department status ແລະ grants ຕາມກົດເດີມ. Browser ກວດດ້ວຍ disposable DB; ຫຼັກຖານ `output/playwright/task-assignment-results.json`, `.local/traces/task-assignment.zip` ແລະ `.local/TaskAssignmentPicker.preview.html` (8 states; ignored).
 
 - Task ID ຍັງເປັນ Resource UUID. ບໍ່ມີ Project/Host hierarchy ໃໝ່.
 - Host ເຊີນທີມໂດຍອອກ explicit `view`, `comment`, `edit` grants ໃນ transaction ດຽວກັບ task/history/audit. ໃຊ້ central authorization; ບໍ່ອະນຸຍາດໂດຍກວດ assignee ໃນ read query.

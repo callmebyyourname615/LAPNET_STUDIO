@@ -201,7 +201,15 @@ export const taskOptionsSchema = z.object({
     .array(z.object({ id: z.uuid(), code: z.string(), name: z.string() }))
     .default([]),
   departments: z.array(z.object({ id: z.uuid(), code: z.string(), name: z.string() })),
-  users: z.array(taskPersonSchema),
+  users: z.array(
+    taskPersonSchema.extend({
+      username: z.string().nullable().default(null),
+      departments: z
+        .array(z.object({ id: z.uuid(), code: z.string(), name: z.string() }))
+        .default([]),
+    }),
+  ),
+  nextCursor: z.string().nullable().default(null),
 });
 export type TaskOptions = z.infer<typeof taskOptionsSchema>;
 export const taskHistorySchema = z.object({

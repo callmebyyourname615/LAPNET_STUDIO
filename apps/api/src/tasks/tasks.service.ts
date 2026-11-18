@@ -9,7 +9,13 @@ import {
 import { randomUUID } from "node:crypto";
 import type { Prisma } from "@lapnet/database";
 import { DatabaseService } from "../database.service";
-import { AuthorizationService, type Transaction } from "../identity/authorization.service";
+import {
+  AuthorizationService,
+  current,
+  pageCursor,
+  nextCursor,
+  type Transaction,
+} from "../identity/authorization.service";
 import {
   CreateTaskInput,
   UpdateTaskInput,
@@ -106,29 +112,58 @@ export class TasksService {
       orderBy: { code: "asc" },
     });
     const term = q.q?.trim() ?? "";
+    const after = pageCursor(q.cursor);
+    const where: Prisma.UserWhereInput = {
+      status: "active",
+      username: { not: null },
+      ...(q.departmentId
+        ? {
+            memberships: {
+              some: { departmentId: q.departmentId, ...current(), department: { active: true } },
+            },
+          }
+        : {}),
+      ...(term
+        ? {
+            OR: [
+              { displayName: { contains: term, mode: "insensitive" as const } },
+              { username: { contains: term.toLowerCase(), mode: "insensitive" as const } },
+            ],
+          }
+        : {}),
+    };
+    const limit = Math.min(q.limit, 25);
     const users = await this.database.client.user.findMany({
-      where: {
-        status: "active",
-        username: { not: null },
-        ...(term.length >= 2
-          ? {
-              OR: [
-                { displayName: { contains: term, mode: "insensitive" as const } },
-                { username: { contains: term.toLowerCase(), mode: "insensitive" as const } },
-              ],
-            }
-          : { id: actor }),
+      where,
+      select: {
+        ...person,
+        username: true,
+        memberships: {
+          where: { ...current(), department: { active: true } },
+          select: { department: { select: { id: true, code: true, name: true } } },
+          orderBy: { department: { code: "asc" } },
+        },
       },
-      select: person,
-      orderBy: { id: "asc" },
-      take: Math.min(q.limit, 25),
+      orderBy: [{ displayName: "asc" }, { id: "asc" }],
+      ...(after ? { cursor: { id: after }, skip: 1 } : {}),
+      take: limit + 1,
     });
     const taggableDepartments = await this.database.client.department.findMany({
       where: { active: true },
       select: { id: true, code: true, name: true },
       orderBy: { code: "asc" },
     });
-    return { departments, users, taggableDepartments };
+    return {
+      departments,
+      users: users.slice(0, limit).map(({ memberships, ...user }) => ({
+        ...user,
+        departments: [
+          ...new Map(memberships.map(({ department }) => [department.id, department])).values(),
+        ],
+      })),
+      taggableDepartments,
+      nextCursor: users.length > limit ? nextCursor(users[limit - 1].id) : null,
+    };
   }
   private map(row: Row, editable: Set<string>, manageable: Set<string>, actorId: string) {
     const dueDate = row.dueDate?.toISOString().slice(0, 10) ?? null;
