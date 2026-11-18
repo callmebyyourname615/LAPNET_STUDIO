@@ -55,7 +55,7 @@ export function Authentication({ children }: { children: ReactNode }) {
       /* Browser storage may be disabled. */
     }
     setCsrfToken(parsed.csrfToken);
-    setMe(parsed);
+    setMe((previous) => (JSON.stringify(previous) === JSON.stringify(parsed) ? previous : parsed));
     setFailure("");
   }, []);
   const refresh = useCallback(async () => {
@@ -89,7 +89,7 @@ export function Authentication({ children }: { children: ReactNode }) {
     window.addEventListener("focus", onFocus);
     const timer = authenticated
       ? window.setInterval(() => {
-          void refresh();
+          if (!document.hidden) void refresh();
         }, 60000)
       : undefined;
     return () => {

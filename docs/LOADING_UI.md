@@ -25,3 +25,5 @@ Shimmer ໃຊ້ `gsap.fromTo` ກັບ transform `xPercent`, ໃຊ້ `useGS
 ສະຖານະ loading ມີ role=status ແລະ ປ້າຍພາສາລາວສຳລັບ screen reader. ຮູບ placeholder ແມ່ນ aria-hidden. ປຸ່ມທີ່ລໍຖ້າຕ້ອງ disabled ເພື່ອບໍ່ໃຫ້ສົ່ງຊ້ຳ. ການໂຫຼດເບື້ອງຫຼັງເຊັ່ນ session refresh ບໍ່ຄວນເຊື່ອງໜ້າທີ່ໃຊ້ງານໄດ້.
 
 ການກວດ browser ວັນທີ 10 ພະຈິກ 2026: ກວດ API ທີ່ລໍຖ້າ, error/retry, ຈໍ 320/375/768/1440px, ປ່ຽນ Reduced Motion ລະຫວ່າງໃຊ້ງານ, hidden tab, ແລະ ການນຳທາງກ່ອນ request ສຳເລັດ. ບົດລາຍງານຢູ່ `output/playwright/skeleton-results.json`; screenshot ຢູ່ `output/playwright/skeleton-dashboard-*.png`. ໄຟລ໌ເຫຼົ່ານີ້ແມ່ນ local artifacts ທີ່ບໍ່ commit.
+
+ການແກ້ background refresh ວັນທີ 18 ພະຈິກ 2026: `useTaskData` ຮັກສາ content ເດີມເມື່ອ reload URL/schema ເດີມ. ໃຊ້ `refreshing` ສຳລັບ pending refresh ແລະ `loading` ສຳລັບ initial/filter fetch. ຜົນ trace ແລະ error/ACL regression ຢູ່ [PORTAL_REFRESH.md](PORTAL_REFRESH.md).

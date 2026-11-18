@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { taskStatuses, taskPriorities } from "@lapnet/contracts";
-import { apiRequest } from "../../lib/api";
+import { apiRequest, ApiError } from "../../lib/api";
 import { errorText } from "../identity/Auth";
 export const statusNames: Record<(typeof taskStatuses)[number], string> = {
   todo: "ລໍຖ້າດຳເນີນການ",
@@ -40,34 +40,46 @@ export const timeLabel = (value: string) =>
     calendar: "gregory",
   }).format(new Date(value));
 export function useTaskData<T>(path: string, schema: { parse: (value: unknown) => T }) {
+  // Reloads keep usable content mounted. A new URL/schema must never show the old scope.
   const [epoch, setEpoch] = useState(0);
   const [result, setResult] = useState<{
+    path: string;
     key: string;
     schema: typeof schema;
     data: T | null;
     error: string;
   } | null>(null);
   const key = path + "\u0000" + epoch;
-  const reload = useCallback(() => setEpoch((x) => x + 1), []);
+  const reload = useCallback(() => setEpoch((value) => value + 1), []);
   useEffect(() => {
     const controller = new AbortController();
     apiRequest(path, "GET", undefined, controller.signal)
       .then((value) => {
-        if (!controller.signal.aborted)
-          setResult({ key, schema, data: schema.parse(value), error: "" });
+        const data = schema.parse(value);
+        if (!controller.signal.aborted) setResult({ path, key, schema, data, error: "" });
       })
-      .catch((e) => {
-        if (!controller.signal.aborted) {
-          setResult({ key, schema, data: null, error: errorText(e) });
-        }
+      .catch((error: unknown) => {
+        if (controller.signal.aborted) return;
+        const denied = error instanceof ApiError && [401, 403, 404].includes(error.status);
+        setResult((previous) => ({
+          path,
+          key,
+          schema,
+          data:
+            !denied && previous?.path === path && previous.schema === schema ? previous.data : null,
+          error: errorText(error),
+        }));
       });
     return () => controller.abort();
   }, [path, schema, key]);
-  const loading = result?.key !== key || result?.schema !== schema;
+  const sameSource = result?.path === path && result?.schema === schema;
+  const pending = !sameSource || result?.key !== key;
+  const data = sameSource ? result.data : null;
   return {
-    data: loading ? null : result.data,
-    error: loading ? "" : result.error,
-    loading,
+    data,
+    error: sameSource && !pending ? result.error : "",
+    loading: pending && data === null,
+    refreshing: pending && data !== null,
     reload,
   };
 }

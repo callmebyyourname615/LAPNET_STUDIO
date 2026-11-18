@@ -20,7 +20,7 @@ export function Dashboard({ go }: { go: (path: string) => void }) {
   const { me } = useAuth();
   const [view, setView] = useState<"mine" | "all">("mine"),
     [days, setDays] = useState(14);
-  const { data, error, loading, reload } = useTaskData(
+  const { data, error, loading, refreshing, reload } = useTaskData(
     `/api/v1/tasks/dashboard?view=${view}&days=${days}`,
     dashboardSchema,
   );
@@ -51,7 +51,8 @@ export function Dashboard({ go }: { go: (path: string) => void }) {
             className="button secondary dash-refresh"
             onClick={reload}
             aria-label="ໂຫຼດ Dashboard ໃໝ່"
-            disabled={loading}
+            disabled={loading || refreshing}
+            aria-busy={refreshing}
           >
             <RefreshCw size={16} />
           </button>
@@ -75,9 +76,17 @@ export function Dashboard({ go }: { go: (path: string) => void }) {
           ຂໍ້ມູນຈາກລະບົບ
         </span>
       </div>
+      {error && data && (
+        <div className="identity-error" role="alert">
+          <p>ອັບເດດບໍ່ສຳເລັດ. ກຳລັງສະແດງຂໍ້ມູນທີ່ໂຫຼດໄວ້ຫຼ້າສຸດ.</p>
+          <button className="button secondary" onClick={reload}>
+            ລອງໃໝ່
+          </button>
+        </div>
+      )}
       {loading ? (
         <Skeleton variant="dashboard" />
-      ) : error ? (
+      ) : error && !data ? (
         <section className="dash-tile dash-error" role="alert">
           <h2>ບໍ່ສາມາດໂຫຼດພາບລວມໄດ້</h2>
           <p>{error}</p>
