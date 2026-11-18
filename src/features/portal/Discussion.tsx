@@ -1,3 +1,6 @@
+import { MentionTextarea } from "./MentionTextarea";
+import type { SelectedMention } from "./mention-text";
+export type { Mention, SelectedMention } from "./mention-text";
 import { useState } from "react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { commentsSchema } from "@lapnet/contracts";
@@ -9,8 +12,6 @@ import { useTaskData, timeLabel } from "../tasks/api";
 import { t } from "../../i18n/lo";
 import { formatLaoTimestamp } from "../../i18n/lo-date";
 import { Loading, Pager, SimpleForm, value, useWrite, Failure } from "./common";
-export type Mention = { type: "user" | "department" | "position"; id: string };
-export type SelectedMention = Mention & { name: string };
 const targetSchema = {
   parse(value: unknown) {
     return value as {
@@ -153,33 +154,29 @@ export function Comments({
         onChanged?.();
       }}
     >
-      <label>
-        {taskStyle ? "ລາຍງານຄວາມຄືບໜ້າ" : "ຂຽນຄວາມຄິດເຫັນ"}
-        <textarea
-          value={draft}
-          onChange={(event) => setDraft(event.target.value)}
-          required
-          maxLength={4000}
-          rows={3}
-        />
-      </label>
       {taskStyle ? (
-        <details>
-          <summary>@ ກ່າວເຖິງຄົນ ຫຼື ພະແນກ</summary>
-          <Mentions
-            selected={mentions}
-            set={setMentions}
-            taskContext={taskStyle}
-            taskInvite={canInvite}
-          />
-        </details>
-      ) : (
-        <Mentions
-          selected={mentions}
-          set={setMentions}
-          taskContext={taskStyle}
-          taskInvite={canInvite}
+        <MentionTextarea
+          resourceId={id}
+          label="ລາຍງານຄວາມຄືບໜ້າ"
+          value={draft}
+          onChange={setDraft}
+          onMentionsChange={setMentions}
+          canInvite={canInvite}
         />
+      ) : (
+        <>
+          <label>
+            ຂຽນຄວາມຄິດເຫັນ
+            <textarea
+              value={draft}
+              onChange={(event) => setDraft(event.target.value)}
+              required
+              maxLength={4000}
+              rows={3}
+            />
+          </label>
+          <Mentions selected={mentions} set={setMentions} />
+        </>
       )}
     </SimpleForm>
   );
@@ -239,7 +236,9 @@ export function Comments({
           items={data.items.map((row) => ({
             id: row.id,
             actor: row.author.displayName,
-            avatar: row.author.id === me?.user.id ? (me.user.avatarUrl ?? undefined) : undefined,
+            avatar:
+              row.author.avatarUrl ??
+              (row.author.id === me?.user.id ? (me.user.avatarUrl ?? undefined) : undefined),
             createdAt: row.createdAt,
             edited: row.revision > 1,
             meta: row.author.departments.map(t).join(" · "),

@@ -6,6 +6,7 @@ import { createDatabase } from "@lapnet/database";
 import { createApplication } from "../src/app";
 import { hashPassword, randomSecret } from "../src/identity/password";
 import { taskSchema, taskPageSchema, commentsSchema } from "@lapnet/contracts";
+import sharp from "sharp";
 
 test("Host and shared task team", { skip: !process.env.TEST_IDENTITY_DATABASE_URL }, async (t) => {
   const connection = process.env.TEST_IDENTITY_DATABASE_URL!;
@@ -90,7 +91,8 @@ test("Host and shared task team", { skip: !process.env.TEST_IDENTITY_DATABASE_UR
     taggedDepartmentIds: [department("IT")],
   };
   let id = "",
-    revision = 1;
+    revision = 1,
+    avatarPath = "";
   try {
     await t.test(
       "Host selects people and departments without a separate consent flag",
@@ -125,6 +127,73 @@ test("Host and shared task team", { skip: !process.env.TEST_IDENTITY_DATABASE_UR
             where: { resourceId: id, source: "task_team", revokedAt: null },
           }),
           6,
+        );
+      },
+    );
+    await t.test(
+      "Scoped @ lookup returns people on the first character and checks task access",
+      async () => {
+        const path = `/api/v1/mention-targets?resourceId=${id}`;
+        const result = await request(pc, path);
+        assert.equal(result.status, 200);
+        assert(result.value.users.some((user: { id: string }) => user.id === host.id));
+        assert(result.value.departments.some((row: { id: string }) => row.id === department("IT")));
+        assert.equal((await request(oc, path)).status, 404);
+        assert.equal((await request(pc, "/api/v1/mention-targets?resourceId=invalid")).status, 400);
+        assert.deepEqual((await request(pc, "/api/v1/mention-targets")).value.users, []);
+      },
+    );
+    await t.test(
+      "Comment viewers see the author's avatar without access to their private account",
+      async () => {
+        const image = await sharp({
+          create: { width: 32, height: 32, channels: 3, background: "#836bc5" },
+        })
+          .png()
+          .toBuffer();
+        const upload = await fetch(origin + "/api/v1/me/images/avatar", {
+          method: "PUT",
+          headers: {
+            origin: process.env.APP_ORIGIN!,
+            cookie: hc.cookie,
+            "x-csrf-token": hc.csrf,
+            "content-type": "application/octet-stream",
+          },
+          body: new Uint8Array(image),
+        });
+        assert.equal(upload.status, 200);
+        await upload.arrayBuffer();
+        const posted = await request(hc, `/api/v1/resources/${id}/comments`, "POST", {
+          text: "Host with avatar",
+          mentions: [],
+        });
+        assert.equal(posted.status, 201);
+        const comments = commentsSchema.parse(
+          (await request(pc, `/api/v1/resources/${id}/comments`)).value,
+        );
+        avatarPath = comments.items.find((comment) => comment.id === posted.value.id)!.author
+          .avatarUrl!;
+        assert(
+          avatarPath.startsWith(`/api/v1/resources/${id}/comments/${posted.value.id}/avatar?v=`),
+        );
+        for (const client of [pc, mc]) {
+          const imageResponse = await fetch(origin + avatarPath, {
+            headers: { cookie: client.cookie },
+          });
+          assert.equal(imageResponse.status, 200);
+          assert.equal(imageResponse.headers.get("content-type"), "image/webp");
+          assert.equal(imageResponse.headers.get("cache-control"), "private, no-store");
+          assert((await imageResponse.arrayBuffer()).byteLength > 0);
+        }
+        assert.equal((await request(oc, avatarPath)).status, 404);
+        assert.equal(
+          (await request(pc, `/api/v1/resources/${id}/comments/${host.id}/avatar`)).status,
+          404,
+        );
+        assert.equal((await request(pc, "/api/v1/me/images/avatar")).status, 404);
+        assert.equal(
+          (await request(pc, avatarPath.split("?")[0].replace(/avatar$/, "cover"))).status,
+          404,
         );
       },
     );
@@ -223,6 +292,7 @@ test("Host and shared task team", { skip: !process.env.TEST_IDENTITY_DATABASE_UR
           data: { effectiveTo: new Date() },
         });
         assert.equal((await request(mc, `/api/v1/tasks/${id}`)).status, 404);
+        assert.equal((await request(mc, avatarPath)).status, 404);
         const manual = await request(hc, `/api/v1/resources/${id}/grants`, "POST", {
           userId: invited.id,
           permission: "view",
@@ -239,6 +309,7 @@ test("Host and shared task team", { skip: !process.env.TEST_IDENTITY_DATABASE_UR
         const detail = taskSchema.parse((await request(nc, `/api/v1/tasks/${id}`)).value);
         assert.equal(detail.permissions.edit, false);
         assert.equal(detail.permissions.comment, false);
+        assert.equal((await request(nc, `/api/v1/mention-targets?resourceId=${id}`)).status, 403);
         assert.equal(
           await db.resourceGrant.count({
             where: { resourceId: id, userId: invited.id, source: "task_team", revokedAt: null },
@@ -251,6 +322,17 @@ test("Host and shared task team", { skip: !process.env.TEST_IDENTITY_DATABASE_UR
         );
       },
     );
+    await t.test("Archiving a comment removes its shared avatar URL", async () => {
+      const commentId = avatarPath.split("/")[6];
+      const archived = await request(
+        hc,
+        `/api/v1/resources/${id}/comments/${commentId}/archive`,
+        "POST",
+        { revision: 1, text: "Host with avatar", mentions: [] },
+      );
+      assert.equal(archived.status, 201);
+      assert.equal((await request(pc, avatarPath)).status, 404);
+    });
     await t.test(
       "Inactive departments roll back creation and existing team survives restart",
       async () => {

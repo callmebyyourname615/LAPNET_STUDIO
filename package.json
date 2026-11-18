@@ -28,6 +28,7 @@
     "format": "oxfmt",
     "test:tasks": "node scripts/test-identity.ts tasks",
     "test:team": "node scripts/test-identity.ts team",
+    "test:mentions": "node --test scripts/mention-text.test.ts",
     "test:notifications": "node scripts/test-identity.ts notifications",
     "dev:worker": "pnpm --filter @lapnet/api worker",
     "test:business": "node scripts/test-identity.ts business",

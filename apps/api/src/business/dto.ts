@@ -71,6 +71,9 @@ export class NotificationQuery extends PaginationQuery {
   @IsIn(["all", "unread", "mentions", "tasks", "comments"])
   view?: "all" | "unread" | "mentions" | "tasks" | "comments";
 }
+export class MentionTargetsQuery extends RecordQuery {
+  @ApiPropertyOptional() @IsOptional() @IsUUID() resourceId?: string;
+}
 export class CommentInput {
   @ApiProperty() @IsString() @Length(1, 4000) text!: string;
   @ApiPropertyOptional() @IsOptional() @IsInt() @Min(1) revision?: number;

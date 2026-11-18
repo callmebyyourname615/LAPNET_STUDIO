@@ -11,6 +11,12 @@
 
 Timeline ໃຊ້ `src/components/ui/timeline-3.tsx`: avatar/ຕົວຫຍໍ້ຈາກຊື່ຈິງ, ຜູ້ຂຽນ, ພະແນກ ແລະເວລາ Asia/Vientiane; ແບ່ງກຸ່ມມື້ນີ້/ມື້ວານ/ວັນທີ. ໃຊ້ comments API ເດີມ, ບໍ່ໃຊ້ຊື່/ຮູບ/ເຫດການຕົວຢ່າງ. ຜູ້ຂຽນແກ້ໄຂ ແລະເກັບ comment ຂອງຕົນເຂົ້າຄັງໄດ້ຕາມສິດ API.
 
+ພິມ `@` ໃນຊ່ອງລາຍງານຄວາມຄືບໜ້າເພື່ອເປີດລາຍຊື່ຄົນ/ພະແນກຈາກ API. ພິມຕໍ່ເພື່ອຄົ້ນຫາ, ຄລິກ ຫຼືໃຊ້ ↑/↓ ແລ້ວ Enter ເພື່ອເລືອກ; Escape ປິດລາຍຊື່. ລຶບຊື່ອອກຈາກຂໍ້ຄວາມ ຫຼືກົດ × ຈະເອົາຜູ້ຮັບອອກດ້ວຍ. ຄຳຂໍເກົ່າຖືກ abort ເມື່ອຄົ້ນຫາໃໝ່; ຖ້າ API ຂັດຂ້ອງສາມາດລອງໃໝ່ໂດຍຂໍ້ຄວາມຍັງຢູ່.
+
+ຜູ້ທີ່ມີສິດເບິ່ງ comment ເຫັນຮູບ avatar ຂອງຜູ້ຂຽນຜ່ານ `GET /api/v1/resources/:id/comments/:commentId/avatar?v=revision`. API ກວດ ACL ແລະ comment ທີ່ຍັງບໍ່ເຂົ້າຄັງທຸກຄັ້ງ, ສົ່ງຮູບ WebP ທີ່ normalize ແລ້ວ ພ້ອມ `private, no-store`. ບໍ່ມີຮູບຈະໃຊ້ຕົວຫຍໍ້. Account profile/cover ຍັງເປັນ self-only.
+
+ກວດ autocomplete ດ້ວຍ `pnpm test:mentions`; API/ACL ດ້ວຍ `pnpm test:team` ແລະ `pnpm test:account`. Browser ທົດສອບສອງບັນຊີ, ເລືອກ tag, ລຶບ tag, retry ແລະຈໍ 320/375/768px; ຫຼັກຖານ `output/playwright/task-mentions-avatar-results.json` ແລະ `.local/traces/task-mentions-avatar.zip` (ignored).
+
 ## ກົດສິດ ແລະ persistence
 
 - Task ID ຍັງເປັນ Resource UUID. ບໍ່ມີ Project/Host hierarchy ໃໝ່.

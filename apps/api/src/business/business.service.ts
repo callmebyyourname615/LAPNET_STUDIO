@@ -29,6 +29,7 @@ import {
   MovementInput,
   LinkInput,
   MentionInput,
+  MentionTargetsQuery,
 } from "./dto";
 import { enqueueNotification } from "./events";
 import { TasksService } from "../tasks/tasks.service";
@@ -532,6 +533,7 @@ export class BusinessService {
         author: {
           select: {
             ...person,
+            images: { where: { kind: "avatar" }, select: { revision: true } },
             memberships: {
               where: { ...current(), department: { active: true } },
               select: { department: { select: { name: true } } },
@@ -544,13 +546,30 @@ export class BusinessService {
       take: q.limit + 1,
     });
     return {
-      items: rows.slice(0, q.limit).map(({ author: { memberships, ...author }, ...row }) => ({
-        ...row,
-        author: { ...author, departments: memberships.map(({ department }) => department.name) },
-        canEdit: row.authorId === actor,
-      })),
+      items: rows
+        .slice(0, q.limit)
+        .map(({ author: { memberships, images, ...author }, ...row }) => ({
+          ...row,
+          author: {
+            ...author,
+            departments: memberships.map(({ department }) => department.name),
+            avatarUrl: images[0]
+              ? `/api/v1/resources/${id}/comments/${row.id}/avatar?v=${images[0].revision}`
+              : null,
+          },
+          canEdit: row.authorId === actor,
+        })),
       nextCursor: rows.length > q.limit ? encodeCursor(rows[q.limit - 1]) : null,
     };
+  }
+  async commentAvatarAuthor(actor: string, id: string, commentId: string) {
+    await this.policy(actor, id);
+    const row = await this.database.client.resourceComment.findFirst({
+      where: { id: commentId, resourceId: id, archivedAt: null },
+      select: { authorId: true },
+    });
+    if (!row) throw new NotFoundException();
+    return row.authorId;
   }
   async comment(
     actor: string,
@@ -627,11 +646,15 @@ export class BusinessService {
       return { id: row.id };
     });
   }
-  async mentionTargets(actor: string, q: RecordQuery) {
+  async mentionTargets(actor: string, q: MentionTargetsQuery) {
     await this.authorization.context(actor);
+    if (q.resourceId) {
+      const resource = await this.authorization.requireResource(actor, q.resourceId, "comment");
+      if (resource.kind !== "task") throw new BadRequestException();
+    }
     const term = q.q?.trim() ?? "";
     const users =
-      term.length >= 2
+      term.length >= 2 || q.resourceId
         ? await this.database.client.user.findMany({
             where: {
               status: "active",

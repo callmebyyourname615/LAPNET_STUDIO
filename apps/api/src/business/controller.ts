@@ -9,7 +9,10 @@ import {
   Query,
   Req,
   BadRequestException,
+  Res,
 } from "@nestjs/common";
+import type { Response } from "express";
+import { UserImagesService } from "../identity/images.service";
 import { ApiCookieAuth, ApiTags } from "@nestjs/swagger";
 import type { PortalRequest } from "../http";
 import type { BusinessKind } from "@lapnet/contracts";
@@ -22,6 +25,7 @@ import {
   ContactInput,
   MovementInput,
   LinkInput,
+  MentionTargetsQuery,
 } from "./dto";
 function kind(r: PortalRequest): BusinessKind {
   const segment = r.path.split("/")[3];
@@ -39,7 +43,10 @@ const paths = ["posts", "companies", "documents", "interactions"];
 @ApiTags("Business records")
 @Controller()
 export class BusinessController {
-  constructor(private readonly business: BusinessService) {}
+  constructor(
+    private readonly business: BusinessService,
+    private readonly images: UserImagesService,
+  ) {}
   @Get(paths) list(@Req() r: PortalRequest, @Query() q: RecordQuery) {
     return this.business.list(r.principal!.user.id, kind(r), q);
   }
@@ -73,8 +80,17 @@ export class BusinessController {
   ) {
     return this.business.history(r.principal!.user.id, id, q);
   }
-  @Get("mention-targets") targets(@Req() r: PortalRequest, @Query() q: RecordQuery) {
+  @Get("mention-targets") targets(@Req() r: PortalRequest, @Query() q: MentionTargetsQuery) {
     return this.business.mentionTargets(r.principal!.user.id, q);
+  }
+  @Get("resources/:id/comments/:commentId/avatar") async commentAvatar(
+    @Req() r: PortalRequest,
+    @Param("id", ParseUUIDPipe) id: string,
+    @Param("commentId", ParseUUIDPipe) commentId: string,
+    @Res() response: Response,
+  ) {
+    const author = await this.business.commentAvatarAuthor(r.principal!.user.id, id, commentId);
+    return this.images.get(author, "avatar", response);
   }
   @Get("resources/:id/comments") comments(
     @Req() r: PortalRequest,

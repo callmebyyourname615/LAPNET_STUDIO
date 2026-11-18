@@ -411,7 +411,10 @@ export const commentSchema = z.object({
   revision: z.number().int(),
   createdAt: z.string(),
   updatedAt: z.string(),
-  author: taskPersonSchema.extend({ departments: z.array(z.string()).default([]) }),
+  author: taskPersonSchema.extend({
+    departments: z.array(z.string()).default([]),
+    avatarUrl: z.string().nullable().default(null),
+  }),
   canEdit: z.boolean(),
 });
 export const commentsSchema = z.object({

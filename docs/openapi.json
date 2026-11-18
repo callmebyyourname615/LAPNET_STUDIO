@@ -2963,6 +2963,50 @@
             "schema": {
               "type": "string"
             }
+          },
+          {
+            "name": "resourceId",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "cookie": []
+          }
+        ],
+        "tags": [
+          "Business records"
+        ]
+      }
+    },
+    "/api/v1/resources/{id}/comments/{commentId}/avatar": {
+      "get": {
+        "operationId": "BusinessController_commentAvatar",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "commentId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
           }
         ],
         "responses": {
