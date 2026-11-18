@@ -358,9 +358,14 @@ export class DocumentWorkspaceService {
         }
         if (q.q?.trim()) {
           const term = q.q.trim();
+          const code = /^REG-(\d+)$/i.exec(term);
+          const number = code ? Number(code[1]) : 0;
           and.push({
             OR: [
               { title: { contains: term, mode: "insensitive" } },
+              ...(code && Number.isInteger(number) && number > 0 && number <= 2147483647
+                ? [{ number }]
+                : []),
               { documentMetadata: { registryNumber: { contains: term, mode: "insensitive" } } },
               { data: { path: ["externalNumber"], string_contains: term } },
               { versions: { some: { filename: { contains: term, mode: "insensitive" } } } },

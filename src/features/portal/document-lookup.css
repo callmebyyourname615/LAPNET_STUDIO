@@ -1,0 +1,53 @@
+.portal-document-lookup {
+  display: grid;
+  gap: 10px;
+  min-width: 0;
+}
+.portal-document-options {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+  border: 0;
+  padding: 0;
+  margin: 0;
+}
+.portal-document-options .portal-document-option {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 14px;
+  border: 1px solid var(--color-border-subtle);
+  border-radius: 10px;
+  cursor: pointer;
+  background: var(--color-bg-raised);
+}
+.portal-document-option[data-selected] {
+  border-color: var(--color-accent);
+  background: var(--color-accent-soft);
+}
+.portal-document-option:focus-within {
+  outline: 2px solid var(--color-focus);
+  outline-offset: 2px;
+}
+.portal-document-option input[type="radio"] {
+  flex: none;
+  width: 18px;
+  height: 18px;
+  margin-top: 3px;
+  accent-color: var(--color-accent);
+}
+.portal-document-option span {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.portal-document-option strong {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--color-text-primary);
+}
+.portal-document-option small {
+  font-size: 12px;
+  color: var(--color-text-secondary);
+}

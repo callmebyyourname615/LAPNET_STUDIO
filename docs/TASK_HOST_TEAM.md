@@ -15,6 +15,8 @@ Timeline ໃຊ້ `src/components/ui/timeline-3.tsx`: avatar/ຕົວຫຍໍ
 
 ຜູ້ທີ່ມີສິດເບິ່ງ comment ເຫັນຮູບ avatar ຂອງຜູ້ຂຽນຜ່ານ `GET /api/v1/resources/:id/comments/:commentId/avatar?v=revision`. API ກວດ ACL ແລະ comment ທີ່ຍັງບໍ່ເຂົ້າຄັງທຸກຄັ້ງ, ສົ່ງຮູບ WebP ທີ່ normalize ແລ້ວ ພ້ອມ `private, no-store`. ບໍ່ມີຮູບຈະໃຊ້ຕົວຫຍໍ້. Account profile/cover ຍັງເປັນ self-only.
 
+ປຸ່ມ **ເຊື່ອມເອກະສານ** ໃຊ້ Document Workspace API ເພື່ອແສດງເອກະສານທີ່ມີສິດເບິ່ງທັນທີ. ຄົ້ນຫາໄດ້ດ້ວຍຊື່ເອກະສານ, ຊື່ໄຟລ໌, ເລກທະບຽນ ແລະ `REG-…`; ເລືອກລາຍການແລ້ວກົດ **ບັນທຶກການເຊື່ອມ**. ມີ pagination, debounce/abort, ສະຖານະບໍ່ພົບ ແລະ retry. ປ່ຽນຄຳຄົ້ນຫາ/ໜ້າຈະລ້າງການເລືອກເກົ່າ. ການເຊື່ອມບໍ່ເພີ່ມສິດຂອງເອກະສານ. ກວດດ້ວຍ `pnpm test:documents`; Browser ທົດສອບຄົ້ນຫາ/ເລືອກ/ບັນທຶກ ແລະຈໍ 320–1440px ໃນ disposable DB. ຫຼັກຖານ `output/playwright/task-document-lookup-results.json` ແລະ `.local/traces/task-document-lookup.zip` (ignored).
+
 ກວດ autocomplete ດ້ວຍ `pnpm test:mentions`; API/ACL ດ້ວຍ `pnpm test:team` ແລະ `pnpm test:account`. Browser ທົດສອບສອງບັນຊີ, ເລືອກ tag, ລຶບ tag, retry ແລະຈໍ 320/375/768px; ຫຼັກຖານ `output/playwright/task-mentions-avatar-results.json` ແລະ `.local/traces/task-mentions-avatar.zip` (ignored).
 
 ## ກົດສິດ ແລະ persistence

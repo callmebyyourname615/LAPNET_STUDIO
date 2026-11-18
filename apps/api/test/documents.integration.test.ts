@@ -462,6 +462,31 @@ test(
       await t.test(
         "task document activity respects both resources and identifies contributors",
         async () => {
+          const record = workspaceDocumentPageSchema
+            .parse((await request(oc, base + "/documents")).value)
+            .items.find((document) => document.id === id)!;
+          for (const term of [
+            record.title,
+            record.code,
+            "REG-QA-01",
+            record.versions[0].filename,
+          ]) {
+            const found = workspaceDocumentPageSchema.parse(
+              (await request(oc, base + "/documents?q=" + encodeURIComponent(term))).value,
+            );
+            assert(
+              found.items.some((document) => document.id === id),
+              `Document lookup: ${term}`,
+            );
+            const denied = workspaceDocumentPageSchema.parse(
+              (await request(cc, base + "/documents?q=" + encodeURIComponent(term))).value,
+            );
+            assert.equal(denied.total, 0);
+          }
+          assert.equal(
+            (await request(oc, base + "/documents?q=REG-999999999999999999999")).status,
+            200,
+          );
           const task = await request(oc, "/api/v1/tasks", "POST", {
             title: "Review document",
             description: "",

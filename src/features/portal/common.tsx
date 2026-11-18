@@ -4,6 +4,7 @@ import {Skeleton} from '../../components/ui/skeleton';
 import {useTaskData} from '../tasks/api';
 import {errorText} from '../identity/Auth';
 import {apiRequest} from '../../lib/api';
+import {DocumentLookup} from './DocumentLookup';
 export type Go=(path:string)=>void;
 export const routes={post:'/feed',company:'/companies',interaction:'/interactions',document:'/documents'};
 export const endpoints={post:'posts',company:'companies',interaction:'interactions',document:'documents'};
@@ -14,6 +15,10 @@ export function useWrite(){const [busy,setBusy]=useState(false),[error,setError]
 export function Submit({busy,label='ບັນທຶກ'}:{busy:boolean;label?:string}){return <button className="button primary" disabled={busy} type="submit">{busy&&<Skeleton variant="inline"/>}{busy?'ກຳລັງບັນທຶກ...':label}</button>;}
 export function Failure({error}:{error:string}){return error?<p className="identity-error" role="alert">{error}</p>:null;}
 export function ResourceLookup({kind,value,onChange,label='ລາຍການ',required=false}:{kind?:string;value:string;onChange:(id:string)=>void;label?:string;required?:boolean}){
+ if(kind==='document')return <DocumentLookup value={value} onChange={onChange} label={label} required={required}/>;
+ return <GeneralResourceLookup kind={kind} value={value} onChange={onChange} label={label} required={required}/>;
+}
+function GeneralResourceLookup({kind,value,onChange,label,required}:{kind?:string;value:string;onChange:(id:string)=>void;label:string;required:boolean}){
  const [q,setQ]=useState('');const {data,loading,error,reload}=useTaskData('/api/v1/search?limit=25&q='+encodeURIComponent(q)+(kind?'&kind='+kind:''),searchSchema);
  return <div className="portal-lookup"><label>{label}<input type="search" value={q} onChange={e=>setQ(e.target.value)} placeholder="ຄົ້ນຫາຊື່ ຫຼື ເລກທະບຽນ" maxLength={100}/></label>{loading?<Skeleton variant="card" rows={1}/>:error?<Loading loading={false} error={error} reload={reload}/>:<label>ເລືອກລາຍການ<select value={value} required={required} onChange={e=>onChange(e.target.value)}><option value="">ເລືອກ</option>{value&&!data?.items.some(x=>x.id===value)&&<option value={value}>ລາຍການທີ່ເລືອກ</option>}{data?.items.map(x=><option key={x.id} value={x.id}>{x.code} · {x.title}</option>)}</select></label>}</div>;
 }
