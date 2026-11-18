@@ -1,0 +1,35 @@
+{
+  "name": "@lapnet/api",
+  "version": "0.2.0",
+  "private": true,
+  "type": "commonjs",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "dev": "tsc -p tsconfig.json && node --env-file=../../.env dist/src/main.js",
+    "start": "node dist/src/main.js",
+    "test": "node --test dist/test/*.test.js",
+    "openapi": "node dist/src/openapi.js",
+    "worker": "node --env-file=../../.env dist/src/worker.js"
+  },
+  "dependencies": {
+    "@lapnet/contracts": "workspace:*",
+    "@lapnet/database": "workspace:*",
+    "@nestjs/common": "12.4.0",
+    "@nestjs/core": "12.4.0",
+    "@nestjs/platform-express": "12.4.0",
+    "@nestjs/swagger": "12.1.1",
+    "argon2": "0.45.2",
+    "class-transformer": "0.5.1",
+    "class-validator": "0.14.3",
+    "helmet": "8.1.0",
+    "reflect-metadata": "0.2.2",
+    "rxjs": "7.8.2",
+    "sharp": "^0.35.5"
+  },
+  "devDependencies": {
+    "@types/express": "5.0.6",
+    "@types/node": "24.12.0",
+    "typescript": "5.9.3"
+  }
+}

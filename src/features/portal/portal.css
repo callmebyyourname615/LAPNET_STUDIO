@@ -1,0 +1,24 @@
+.portal-fields { display:grid; gap:20px; border:0; margin:0; padding:0; min-width:0; }
+.portal-lookup { display:grid; gap:12px; min-width:0; }
+.portal-layout { display:grid; gap:24px; }
+.portal-record-link { display:block; width:100%; text-align:start; padding:16px 0; border-bottom:1px solid var(--color-border-subtle); overflow-wrap:anywhere; }
+.portal-record-link strong { display:block; margin-block:5px; }
+.portal-record-link small { color:var(--color-text-secondary); }
+.portal-tags { display:flex; flex-wrap:wrap; gap:8px; padding-block:8px; }
+.portal-tag { padding:5px 10px; border:1px solid var(--color-border-subtle); border-radius:6px; font-size:12px; }
+.portal-timeline { border-inline-start:1px solid var(--color-border-control); padding-inline-start:24px; }
+.portal-timeline article { padding-block:20px; border-bottom:1px solid var(--color-border-subtle); }
+.portal-notification { display:flex; justify-content:space-between; align-items:center; gap:16px; padding-block:16px; border-bottom:1px solid var(--color-border-subtle); }
+.portal-unread { border-inline-start:3px solid var(--color-accent); padding-inline-start:12px; }
+.portal-comment { border-bottom:1px solid var(--color-border-subtle); padding-block:20px; overflow-wrap:anywhere; }
+.portal-comment header { display:flex; flex-wrap:wrap; justify-content:space-between; gap:8px; color:var(--color-text-secondary); font-size:12px; margin-bottom:12px; }
+.portal-comment p,.portal-text { white-space:pre-wrap; overflow-wrap:anywhere; }
+.portal-record-data { display:grid; gap:16px; }
+.portal-record-data dt { color:var(--color-text-secondary); font-size:12px; margin-bottom:5px; }
+.portal-record-data dd { white-space:pre-wrap; overflow-wrap:anywhere; }
+.portal-tabs { display:flex; flex-wrap:wrap; gap:8px; margin-bottom:24px; }
+.portal-tabs button[aria-pressed=true] { border-color:var(--color-accent); color:var(--color-accent); }
+.portal-file { border:1px solid var(--color-border-subtle); border-radius:10px; padding:20px; margin-block:16px; overflow-wrap:anywhere; }
+.portal-file code { font-size:11px; word-break:break-all; }
+.portal-file-state { display:inline-block; padding:4px 8px; background:var(--color-bg-raised); border-radius:4px; font-size:12px; }
+@media(min-width:1100px){.portal-layout{grid-template-columns:minmax(0,2fr) minmax(280px,1fr);align-items:start;}}

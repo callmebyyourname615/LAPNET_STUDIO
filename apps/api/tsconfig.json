@@ -1,0 +1,9 @@
+{
+  "compilerOptions": {
+    "target": "ES2023", "module": "CommonJS", "moduleResolution": "Node",
+    "strict": true, "skipLibCheck": true, "esModuleInterop": true,
+    "experimentalDecorators": true, "emitDecoratorMetadata": true,
+    "outDir": "dist", "rootDir": ".", "sourceMap": false
+  },
+  "include": ["src/**/*.ts", "test/**/*.ts"]
+}

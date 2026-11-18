@@ -1,0 +1,148 @@
+.task-filters {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 160px), 1fr));
+  gap: 12px;
+  padding: 16px 0;
+}
+.task-filters label {
+  display: grid;
+  gap: 6px;
+  color: var(--color-text-secondary);
+}
+.task-feedback,
+.task-count {
+  padding-block: 12px;
+  color: var(--color-text-secondary);
+}
+.task-record {
+  display: flex;
+  width: 100%;
+  gap: 16px;
+  padding: 18px 4px;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid var(--color-border-subtle);
+  text-align: start;
+}
+.task-record:hover {
+  background: var(--color-bg-hover);
+}
+.task-record-main {
+  display: grid;
+  min-width: 0;
+  gap: 6px;
+  overflow-wrap: anywhere;
+}
+.task-record-main small,
+.task-record-main > span {
+  color: var(--color-text-secondary);
+}
+.task-record-state {
+  display: grid;
+  flex-shrink: 0;
+  gap: 8px;
+  justify-items: end;
+}
+.task-pagination,
+.task-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: center;
+}
+.task-pagination {
+  justify-content: space-between;
+  padding-block: 16px;
+}
+.task-editor,
+.task-sharing {
+  min-width: 0;
+}
+.task-editor > form {
+  margin-bottom: 0;
+}
+.task-choices {
+  display: grid;
+  gap: 8px;
+  border: 1px solid var(--color-border-subtle);
+  border-radius: 8px;
+  padding: 16px;
+}
+.task-editor .task-choices label,
+.task-editor .task-participant-check,
+.task-sharing .task-participant-check {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 44px;
+}
+.task-choices input[type="checkbox"],
+.task-participant-check input[type="checkbox"] {
+  width: 18px;
+  height: 18px;
+  min-height: 0;
+  flex: none;
+}
+.task-help {
+  color: var(--color-text-secondary);
+  line-height: 1.7;
+}
+.task-description {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  line-height: 1.8;
+}
+.task-history article {
+  padding-block: 16px;
+  border-bottom: 1px solid var(--color-border-subtle);
+  overflow-wrap: anywhere;
+}
+.task-history small {
+  color: var(--color-text-secondary);
+}
+.task-history summary {
+  min-height: 44px;
+  padding-block: 10px;
+  cursor: pointer;
+  color: var(--color-info-fg, var(--info-fg));
+}
+.task-history summary:focus-visible {
+  outline: 2px solid var(--color-focus);
+  outline-offset: 2px;
+}
+.task-sharing .identity-row {
+  justify-content: space-between;
+}
+.task-sharing form {
+  min-width: 0;
+}
+.task-sharing .button {
+  white-space: normal;
+}
+@media (max-width: 599px) {
+  .task-record {
+    align-items: start;
+    flex-direction: column;
+  }
+  .task-record-state {
+    justify-items: start;
+  }
+  .task-pagination .button {
+    padding-inline: 10px;
+  }
+}
+
+.task-page-header h1 {
+  overflow-wrap: anywhere;
+  min-width: 0;
+}
+@media (max-width: 599px) {
+  .task-page-header {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 16px;
+  }
+  .task-history .detail-list {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 2fr);
+  }
+}

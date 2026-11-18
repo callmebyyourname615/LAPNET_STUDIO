@@ -1,0 +1,16 @@
+{
+  "id": "/",
+  "name": "LAPNet Studio Portal",
+  "short_name": "LAPNet Portal",
+  "description": "ຕິດຕາມວຽກ ແລະ ຈັດການເອກະສານພາຍໃນ LAPNet Studio",
+  "lang": "lo",
+  "start_url": "/dashboard",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#1b1b1d",
+  "theme_color": "#1b1b1d",
+  "icons": [
+    { "src": "/icons/pwa-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "/icons/pwa-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" }
+  ]
+}

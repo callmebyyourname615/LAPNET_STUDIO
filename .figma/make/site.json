@@ -1,0 +1,13 @@
+{
+  "title": "LAPNet Studio Portal",
+  "language": "lo",
+  "icons": { "icon": "/icons/pwa-192.png" },
+  "description": "ລະບົບພາຍໃນສຳລັບຕິດຕາມວຽກ, ຈັດການເອກະສານ ແລະ ບັນທຶກການຕິດຕໍ່ບໍລິສັດ.",
+  "robots": {
+    "index": false
+  },
+  "accessibility": {
+    "addBypassLinks": false,
+    "ignoreReducedMotion": false
+  }
+}

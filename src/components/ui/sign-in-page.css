@@ -1,0 +1,237 @@
+/* Hallmark · macrostructure: Split Studio · genre: modern-minimal
+ * theme: existing LAPNet charcoal / blue · tone: restrained, utilitarian
+ * audience: company staff · use: sign in · enrichment: existing user assets
+ * pre-emit critique: P5 H5 E4 S5 R5 V4
+ */
+@import "../../../tokens.css";
+
+html:has(.login-page),
+body:has(.login-page) {
+  overflow-x: clip;
+}
+
+.login-page {
+  background: var(--color-login-paper);
+  color: var(--color-login-ink);
+  font-family: var(--font-login-body);
+  font-size: var(--text-login-body);
+  line-height: 1.65;
+  color-scheme: dark;
+}
+
+.login-panel {
+  display: flex;
+  flex: 1;
+  min-width: 0;
+  min-height: 100svh;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-login-section) var(--space-login-lg);
+  padding-block-end: max(var(--space-login-section), env(safe-area-inset-bottom));
+}
+
+.login-content {
+  width: 100%;
+  max-width: 24rem;
+}
+
+.login-page .login-logo {
+  width: 100%;
+  max-width: 22.5rem;
+  margin-block-end: var(--space-login-section);
+}
+
+.login-header {
+  margin-block-end: var(--space-login-xl);
+}
+.login-page .login-title {
+  min-width: 0;
+  margin: 0 0 var(--space-login-xs);
+  font-family: var(--font-login-display);
+  font-size: var(--text-login-title);
+  font-weight: 650;
+  font-style: normal;
+  line-height: 1.6;
+  overflow-wrap: anywhere;
+}
+
+.login-subtitle {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  column-gap: var(--space-login-xs);
+  margin: 0;
+  color: var(--color-login-muted);
+  font-size: var(--text-login-small);
+}
+
+.login-link {
+  min-height: 44px;
+  padding: 0;
+  color: var(--color-login-accent);
+  font-size: inherit;
+  font-weight: 500;
+  white-space: nowrap;
+  text-underline-offset: 4px;
+}
+
+.login-form {
+  display: grid;
+  gap: var(--space-login-field);
+}
+.login-label {
+  display: block;
+  margin-block-end: var(--space-login-xs);
+  color: var(--color-login-label);
+  font-size: var(--text-login-small);
+  font-weight: 500;
+}
+
+.login-input {
+  width: 100%;
+  min-height: 52px;
+  padding: var(--space-login-sm) var(--space-login-md);
+  border: 1px solid var(--color-login-rule);
+  border-radius: var(--radius-login-control);
+  background: var(--color-login-field);
+  color: var(--color-login-ink);
+  font-size: var(--text-login-body);
+  line-height: 1.5;
+  transition: border-color var(--dur-login-feedback) var(--ease-login-out);
+}
+.login-input::placeholder {
+  color: var(--color-login-muted);
+}
+.login-password {
+  padding-inline-end: 3.5rem;
+}
+.login-eye {
+  position: absolute;
+  inset-inline-end: 4px;
+  top: 50%;
+  display: grid;
+  width: 44px;
+  height: 44px;
+  place-items: center;
+  transform: translateY(-50%);
+  border-radius: var(--radius-login-control);
+  color: var(--color-login-muted);
+}
+
+.login-options {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0 var(--space-login-md);
+  font-size: var(--text-login-small);
+}
+.login-remember {
+  display: flex;
+  min-height: 44px;
+  align-items: center;
+  gap: var(--space-login-sm);
+  color: var(--color-login-muted);
+  cursor: pointer;
+  white-space: nowrap;
+}
+.login-checkbox {
+  width: 18px;
+  min-height: 0;
+  height: 18px;
+  padding: 0;
+  accent-color: var(--color-login-accent);
+}
+
+.login-submit {
+  display: flex;
+  width: 100%;
+  min-height: 52px;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-login-xs);
+  padding: var(--space-login-sm) var(--space-login-md);
+  border: 1px solid var(--color-login-action);
+  border-radius: var(--radius-login-control);
+  background: var(--color-login-action);
+  color: var(--color-login-accent-ink);
+  font-size: var(--text-login-body);
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.login-back {
+  display: grid;
+  width: 44px;
+  height: 44px;
+  place-items: center;
+  border-radius: var(--radius-login-control);
+  background: var(--color-login-paper);
+  color: var(--color-login-ink);
+}
+.login-notice {
+  padding: var(--space-login-md);
+  border-inline-start: 2px solid var(--color-login-accent);
+  border-radius: 0 var(--radius-login-control) var(--radius-login-control) 0;
+  background: var(--color-login-field);
+  color: var(--color-login-label);
+  font-size: var(--text-login-small);
+  line-height: 1.8;
+}
+.login-error {
+  border-color: var(--color-login-error);
+  background: var(--color-login-error-surface);
+  color: var(--color-login-error);
+}
+
+.login-page :is(button, input):focus-visible {
+  outline: 2px solid var(--color-login-accent);
+  outline-offset: 4px;
+  box-shadow: none;
+}
+.login-input:focus-visible {
+  border-color: var(--color-login-accent);
+}
+.login-page :is(button, input):disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.login-page .login-submit:active:not(:disabled) {
+  background: var(--color-login-action-pressed);
+}
+.login-page .login-link:active:not(:disabled) {
+  color: var(--color-login-accent-hover);
+}
+.login-page :is(.login-eye, .login-back):active:not(:disabled) {
+  background: var(--color-login-hover);
+}
+
+@media (hover: hover) {
+  .login-link:hover {
+    color: var(--color-login-accent-hover);
+    text-decoration: underline;
+  }
+  .login-submit:hover:not(:disabled) {
+    background: var(--color-login-action-hover);
+  }
+  .login-eye:hover:not(:disabled),
+  .login-back:hover {
+    background: var(--color-login-hover);
+  }
+  .login-input:hover:not(:disabled) {
+    border-color: var(--color-login-muted);
+  }
+}
+@media (min-width: 48rem) {
+  .login-panel {
+    padding: var(--space-login-section) var(--space-login-xl);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .login-page *,
+  .login-page *::before,
+  .login-page *::after {
+    animation: none !important;
+    transition: none !important;
+  }
+}

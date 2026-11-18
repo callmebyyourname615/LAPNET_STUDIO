@@ -1,0 +1,32 @@
+import assert from "node:assert/strict";
+import { test } from "node:test";
+import { getToasts, removeToast, subscribeToasts, toast } from "./toast.ts";
+
+test("Global toast store deduplicates, bounds the stack and preserves exit state", () => {
+  toast.clear();
+  let updates = 0;
+  const unsubscribe = subscribeToasts(() => updates++);
+  const id = toast.success("Saved");
+  assert.equal(toast.success("Saved"), id);
+  assert.equal(updates, 1);
+  assert.equal(getToasts().length, 1);
+  toast.error("Failed");
+  toast.warning("Check");
+  toast.info("Notice");
+  toast.info("Newest");
+  assert.equal(getToasts().length, 4);
+  assert(!getToasts().some((notice) => notice.id === id));
+  const latest = getToasts().at(-1)!;
+  toast.dismiss(latest.id);
+  assert(getToasts().at(-1)?.closing);
+  const snapshot = getToasts();
+  toast.dismiss(latest.id);
+  assert.equal(getToasts(), snapshot);
+  removeToast(latest.id);
+  assert(!getToasts().some((notice) => notice.id === latest.id));
+  unsubscribe();
+  const beforeClear = updates;
+  toast.clear();
+  assert.equal(updates, beforeClear);
+  assert.equal(getToasts().length, 0);
+});

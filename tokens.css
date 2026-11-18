@@ -1,0 +1,123 @@
+/* Settings: profile cover and account-management cards. */
+:root {
+  --z-image-studio: 400;
+  --color-image-studio-overlay: #000000b3;
+  --color-image-studio-crop-mask: #00000088;
+  --size-settings-page: 80rem;
+  --size-settings-cover: 11rem;
+  --size-settings-cover-mobile: 8rem;
+  --size-settings-profile: 16rem;
+  --size-settings-avatar: 5rem;
+  --size-settings-icon: 2.75rem;
+  --size-settings-target: 2.75rem;
+  --space-settings-small: 0.25rem;
+  --space-settings-gap: 0.5rem;
+  --space-settings-card: 1.25rem;
+  --space-settings-layout: 1.5rem;
+  --space-settings-section: 2rem;
+  --space-settings-overlap: 1.5rem;
+  --radius-settings-cover: var(--radius-xl);
+  --text-settings-avatar: 1.5rem;
+  --text-settings-heading: 1rem;
+  --text-settings-small: 0.75rem;
+}
+/* Account menu: inherits the shared Portal / Document palette. */
+:root {
+  --space-profile-inset: 0.5rem;
+  --space-profile-small: 0.25rem;
+  --space-profile-gap: 0.75rem;
+  --space-profile-label: 0.75rem;
+  --space-profile-viewport: 1.5rem;
+  --size-profile-menu: 16rem;
+  --size-profile-target: 2.75rem;
+  --text-profile-body: 0.875rem;
+  --text-profile-caption: 0.8125rem;
+  --shadow-profile-menu: 0 12px 36px #00000052;
+  --z-profile-menu: 300;
+  --duration-profile-enter: 180ms;
+  --duration-profile-exit: 120ms;
+  --distance-profile-enter: 8px;
+}
+/* Global feedback: shared across Portal, Document and authentication pages. */
+:root {
+  --space-toast-inset: 1rem;
+  --space-toast-gap: 0.75rem;
+  --space-toast-card: 1rem;
+  --size-toast-width: 26rem;
+  --size-toast-icon: 2.75rem;
+  --size-toast-progress: 4px;
+  --radius-toast: var(--radius-lg);
+  --text-toast-body: 0.875rem;
+  --text-toast-title: 0.9375rem;
+  --shadow-toast: 0 12px 36px #00000066;
+  --z-toast: 1000;
+  --duration-toast-enter: 420ms;
+  --distance-toast-enter: 36px;
+  --duration-toast-exit: 180ms;
+  --duration-toast-visible: 5000ms;
+  --duration-toast-error-visible: 8000ms;
+}
+
+/* Login tokens: scoped to preserve the portal's existing design system. */
+.login-page {
+  --color-login-paper: oklch(19% 0.003 286);
+  --color-login-field: oklch(24% 0.004 286);
+  --color-login-hover: oklch(28% 0.005 286);
+  --color-login-ink: oklch(96% 0.003 286);
+  --color-login-muted: oklch(73% 0.01 286);
+  --color-login-label: oklch(86% 0.006 286);
+  --color-login-rule: oklch(53% 0.012 286);
+  --color-login-accent: oklch(77% 0.13 251);
+  --color-login-accent-hover: oklch(86% 0.08 251);
+  --color-login-accent-ink: oklch(19% 0.003 286);
+  --color-login-action: oklch(96% 0.003 286);
+  --color-login-action-hover: oklch(100% 0 0);
+  --color-login-action-pressed: oklch(87% 0.006 286);
+  --color-login-error: oklch(82% 0.1 20);
+  --color-login-error-surface: oklch(25% 0.04 20);
+  --font-login-display: var(--font-sans);
+  --font-login-body: var(--font-sans);
+  --space-login-xs: 0.5rem;
+  --space-login-sm: 0.75rem;
+  --space-login-md: 1rem;
+  --space-login-field: 1.25rem;
+  --space-login-lg: 1.5rem;
+  --space-login-xl: 2rem;
+  --space-login-section: 2.5rem;
+  --text-login-body: 1rem;
+  --text-login-small: 0.875rem;
+  --text-login-title: clamp(1.75rem, 2.3vw, 2rem);
+  --radius-login-control: 0.625rem;
+  --ease-login-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --dur-login-feedback: 140ms;
+}
+
+/* Dashboard: extend the existing portal palette without affecting Login. */
+.work-dashboard {
+  --dash-surface: var(--color-bg-surface);
+  --dash-raised: var(--color-bg-raised);
+  --dash-ink: var(--color-text-primary);
+  --dash-muted: var(--color-text-secondary);
+  --dash-border: var(--color-border-subtle);
+  --dash-accent: var(--color-accent);
+  --dash-track: var(--color-bg-hover);
+  --dash-todo: var(--color-text-tertiary);
+  --dash-in_progress: var(--info-fg);
+  --dash-blocked: var(--warning-fg);
+  --dash-done: var(--success-fg);
+  --dash-cancelled: var(--danger-fg);
+  --space-dash-gap: 1rem;
+  --space-dash-card: 1.5rem;
+  --radius-dash-card: 1rem;
+  --font-dash-display: var(--font-sans);
+  --font-dash-body: var(--font-sans);
+}
+
+/* Platform switch: inherit the portal's semantic colors and typography. */
+.platform-switcher {
+  --space-platform-inset: 0.25rem;
+  --space-platform-gap: 0.5rem;
+  --space-platform-label: 0.75rem;
+  --text-platform-label: 0.875rem;
+  --size-platform-target: 2.75rem;
+}

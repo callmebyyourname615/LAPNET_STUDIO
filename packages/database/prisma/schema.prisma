@@ -1,0 +1,586 @@
+generator client {
+  provider     = "prisma-client"
+  output       = "../src/generated"
+  moduleFormat = "cjs"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum AccountStatus {
+  active
+  disabled
+}
+
+enum ResourceKind {
+  post
+  task
+  document
+  company
+  interaction
+}
+
+enum ResourcePermission {
+  view
+  comment
+  edit
+  manage_access
+  download
+}
+
+enum PortalRole {
+  portal_admin
+  resource_viewer
+  resource_editor
+}
+
+enum TaskStatus {
+  todo
+  in_progress
+  blocked
+  done
+  cancelled
+}
+
+enum TaskPriority {
+  low
+  normal
+  high
+  urgent
+}
+
+model User {
+  id                 String                 @id @default(uuid()) @db.Uuid
+  identitySubject    String                 @unique @map("identity_subject")
+  username           String?                @unique
+  passwordHash       String?                @map("password_hash")
+  mustChangePassword Boolean                @default(false) @map("must_change_password")
+  credentialVersion  Int                    @default(0) @map("credential_version")
+  displayName        String                 @map("display_name")
+  email              String?                @unique
+  status             AccountStatus          @default(active)
+  createdAt          DateTime               @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt          DateTime               @updatedAt @map("updated_at") @db.Timestamptz(3)
+  memberships        DepartmentMembership[]
+  positions          PositionAssignment[]
+  ownedResources     Resource[]             @relation("Owner")
+  grants             ResourceGrant[]        @relation("Grantee")
+  issuedGrants       ResourceGrant[]        @relation("Grantor")
+  sessions           Session[]
+  roles              RoleAssignment[]       @relation("RoleHolder")
+  issuedRoles        RoleAssignment[]       @relation("RoleGrantor")
+  businessRevisions  BusinessRevision[]     @relation("BusinessActor")
+  comments           ResourceComment[]
+  mentions           Mention[]              @relation("MentionRecipient")
+  notifications      Notification[]         @relation("NotificationRecipient")
+  movements          DocumentMovement[]     @relation("MovementActor")
+  commentRevisions   CommentRevision[]
+  outboxJobs         OutboxJob[]            @relation("JobRecipient")
+  auditEvents        AuditEvent[]
+  assignedTasks      Task[]                 @relation("TaskAssignee")
+  delegatedTasks     Task[]                 @relation("TaskAssigner")
+  taskCollaborations TaskCollaborator[]
+  taskRevisions      TaskRevision[]
+  images             UserImage[]
+  profile            UserProfile?
+
+  @@map("users")
+}
+
+model UserImage {
+  userId    String   @map("user_id") @db.Uuid
+  kind      String   @db.VarChar(10)
+  data      Bytes
+  revision  Int      @default(1)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Restrict)
+
+  @@id([userId, kind])
+  @@map("user_images")
+}
+
+model UserProfile {
+  userId    String   @id @map("user_id") @db.Uuid
+  fullName  String   @default("") @map("full_name") @db.VarChar(200)
+  contactEmail String @default("") @map("contact_email") @db.VarChar(254)
+  phone     String   @default("") @db.VarChar(40)
+  address   String   @default("") @db.VarChar(500)
+  headline  String   @default("") @db.VarChar(120)
+  about     String   @default("") @db.VarChar(2000)
+  skills    String[] @default([])
+  website   String   @default("") @db.VarChar(500)
+  github    String   @default("") @db.VarChar(500)
+  linkedin  String   @default("") @db.VarChar(500)
+  revision  Int      @default(1)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Restrict)
+
+  @@map("user_profiles")
+}
+
+model Department {
+  id                 String                 @id @default(uuid()) @db.Uuid
+  code               String                 @unique
+  name               String
+  active             Boolean                @default(true)
+  createdAt          DateTime               @default(now()) @map("created_at") @db.Timestamptz(3)
+  memberships        DepartmentMembership[]
+  reportingLines     ReportingLine[]
+  collaborationsFrom CollaborationLink[]    @relation("From")
+  collaborationsTo   CollaborationLink[]    @relation("To")
+  resources          Resource[]
+  grants             ResourceGrant[]
+  roles              RoleAssignment[]
+
+  @@map("departments")
+}
+
+model Session {
+  id                String    @id @default(uuid()) @db.Uuid
+  tokenHash         String    @unique @map("token_hash") @db.Char(64)
+  csrfSecret        String    @map("csrf_secret")
+  rememberMe        Boolean   @default(false) @map("remember_me")
+  userId            String    @map("user_id") @db.Uuid
+  credentialVersion Int       @map("credential_version")
+  createdAt         DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  expiresAt         DateTime  @map("expires_at") @db.Timestamptz(3)
+  idleExpiresAt     DateTime  @map("idle_expires_at") @db.Timestamptz(3)
+  revokedAt         DateTime? @map("revoked_at") @db.Timestamptz(3)
+  user              User      @relation(fields: [userId], references: [id], onDelete: Restrict)
+
+  @@index([userId, revokedAt])
+  @@index([expiresAt])
+  @@map("sessions")
+}
+
+model LoginThrottle {
+  keyHash         String   @id @map("key_hash") @db.Char(64)
+  attempts        Int      @default(1)
+  windowStartedAt DateTime @default(now()) @map("window_started_at") @db.Timestamptz(3)
+
+  @@map("login_throttles")
+}
+
+model RoleAssignment {
+  id            String      @id @default(uuid()) @db.Uuid
+  userId        String      @map("user_id") @db.Uuid
+  role          PortalRole
+  departmentId  String?     @map("department_id") @db.Uuid
+  grantedById   String      @map("granted_by_id") @db.Uuid
+  effectiveFrom DateTime    @default(now()) @map("effective_from") @db.Timestamptz(3)
+  effectiveTo   DateTime?   @map("effective_to") @db.Timestamptz(3)
+  user          User        @relation("RoleHolder", fields: [userId], references: [id], onDelete: Restrict)
+  grantedBy     User        @relation("RoleGrantor", fields: [grantedById], references: [id], onDelete: Restrict)
+  department    Department? @relation(fields: [departmentId], references: [id], onDelete: Restrict)
+
+  @@index([userId, effectiveTo])
+  @@map("role_assignments")
+}
+
+model AuditEvent {
+  id         String   @id @default(uuid()) @db.Uuid
+  actorId    String?  @map("actor_id") @db.Uuid
+  action     String
+  targetId   String?  @map("target_id") @db.Uuid
+  requestId  String?  @map("request_id") @db.Uuid
+  metadata   Json
+  occurredAt DateTime @default(now()) @map("occurred_at") @db.Timestamptz(3)
+  actor      User?    @relation(fields: [actorId], references: [id], onDelete: Restrict)
+
+  @@index([occurredAt, id])
+  @@map("audit_events")
+}
+
+model Position {
+  id             String               @id @default(uuid()) @db.Uuid
+  code           String               @unique
+  label          String
+  assignments    PositionAssignment[]
+  reportingLines ReportingLine[]
+
+  @@map("positions")
+}
+
+model DepartmentMembership {
+  id             String     @id @default(uuid()) @db.Uuid
+  userId         String     @map("user_id") @db.Uuid
+  departmentId   String     @map("department_id") @db.Uuid
+  membershipRole String     @default("member") @map("membership_role")
+  effectiveFrom  DateTime   @default(now()) @map("effective_from") @db.Timestamptz(3)
+  effectiveTo    DateTime?  @map("effective_to") @db.Timestamptz(3)
+  user           User       @relation(fields: [userId], references: [id], onDelete: Restrict)
+  department     Department @relation(fields: [departmentId], references: [id], onDelete: Restrict)
+
+  @@index([userId, departmentId, effectiveTo])
+  @@map("department_memberships")
+}
+
+model PositionAssignment {
+  id            String    @id @default(uuid()) @db.Uuid
+  positionId    String    @map("position_id") @db.Uuid
+  userId        String    @map("user_id") @db.Uuid
+  effectiveFrom DateTime  @default(now()) @map("effective_from") @db.Timestamptz(3)
+  effectiveTo   DateTime? @map("effective_to") @db.Timestamptz(3)
+  position      Position  @relation(fields: [positionId], references: [id], onDelete: Restrict)
+  user          User      @relation(fields: [userId], references: [id], onDelete: Restrict)
+
+  @@index([positionId, effectiveTo])
+  @@map("position_assignments")
+}
+
+model ReportingLine {
+  id            String     @id @default(uuid()) @db.Uuid
+  departmentId  String     @map("department_id") @db.Uuid
+  positionId    String     @map("position_id") @db.Uuid
+  effectiveFrom DateTime   @default(now()) @map("effective_from") @db.Timestamptz(3)
+  effectiveTo   DateTime?  @map("effective_to") @db.Timestamptz(3)
+  department    Department @relation(fields: [departmentId], references: [id], onDelete: Restrict)
+  position      Position   @relation(fields: [positionId], references: [id], onDelete: Restrict)
+
+  @@index([departmentId, effectiveTo])
+  @@map("reporting_lines")
+}
+
+model CollaborationLink {
+  id            String     @id @default(uuid()) @db.Uuid
+  departmentAId String     @map("department_a_id") @db.Uuid
+  departmentBId String     @map("department_b_id") @db.Uuid
+  departmentA   Department @relation("From", fields: [departmentAId], references: [id], onDelete: Restrict)
+  departmentB   Department @relation("To", fields: [departmentBId], references: [id], onDelete: Restrict)
+
+  @@unique([departmentAId, departmentBId])
+  @@map("collaboration_links")
+}
+
+model Resource {
+  id                String             @id @default(uuid()) @db.Uuid
+  kind              ResourceKind
+  ownerUserId       String             @map("owner_user_id") @db.Uuid
+  ownerDepartmentId String             @map("owner_department_id") @db.Uuid
+  classification    String             @default("restricted")
+  archivedAt        DateTime?          @map("archived_at") @db.Timestamptz(3)
+  createdAt         DateTime           @default(now()) @map("created_at") @db.Timestamptz(3)
+  owner             User               @relation("Owner", fields: [ownerUserId], references: [id], onDelete: Restrict)
+  department        Department         @relation(fields: [ownerDepartmentId], references: [id], onDelete: Restrict)
+  grants            ResourceGrant[]
+  timelineAsCompany BusinessEvent[]    @relation("TimelineCompany")
+  timelineAsSource  BusinessEvent[]    @relation("TimelineSource")
+  business          BusinessRecord?    @relation("BusinessResource")
+  childRecords      BusinessRecord[]   @relation("BusinessParent")
+  sourceLinks       RecordLink[]       @relation("LinkSource")
+  targetLinks       RecordLink[]       @relation("LinkTarget")
+  comments          ResourceComment[]
+  notifications     Notification[]
+  movements         DocumentMovement[] @relation("MovementParty")
+  task              Task?
+
+  @@index([ownerUserId, kind])
+  @@index([ownerDepartmentId, kind])
+  @@map("resources")
+}
+
+model Task {
+  id            String             @id @db.Uuid
+  number        Int                @unique @default(autoincrement())
+  title         String             @db.VarChar(200)
+  description   String             @default("") @db.VarChar(8000)
+  status        TaskStatus         @default(todo)
+  priority      TaskPriority       @default(normal)
+  dueDate       DateTime?          @map("due_date") @db.Date
+  assigneeId    String             @map("assignee_id") @db.Uuid
+  assignedById  String             @map("assigned_by_id") @db.Uuid
+  revision      Int                @default(1)
+  createdAt     DateTime           @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt     DateTime           @updatedAt @map("updated_at") @db.Timestamptz(3)
+  resource      Resource           @relation(fields: [id], references: [id], onDelete: Restrict)
+  assignee      User               @relation("TaskAssignee", fields: [assigneeId], references: [id], onDelete: Restrict)
+  assignedBy    User               @relation("TaskAssigner", fields: [assignedById], references: [id], onDelete: Restrict)
+  collaborators TaskCollaborator[]
+  history       TaskRevision[]
+
+  @@index([createdAt, id])
+  @@index([assigneeId, status, createdAt, id])
+  @@index([assignedById, createdAt, id])
+  @@index([dueDate, status])
+  @@map("tasks")
+}
+
+model TaskCollaborator {
+  taskId String @map("task_id") @db.Uuid
+  userId String @map("user_id") @db.Uuid
+  task   Task   @relation(fields: [taskId], references: [id], onDelete: Restrict)
+  user   User   @relation(fields: [userId], references: [id], onDelete: Restrict)
+
+  @@id([taskId, userId])
+  @@index([userId, taskId])
+  @@map("task_collaborators")
+}
+
+model TaskRevision {
+  id         String   @id @default(uuid()) @db.Uuid
+  taskId     String   @map("task_id") @db.Uuid
+  revision   Int
+  actorId    String   @map("actor_id") @db.Uuid
+  action     String
+  reason     String?  @db.VarChar(500)
+  snapshot   Json
+  occurredAt DateTime @default(now()) @map("occurred_at") @db.Timestamptz(3)
+  task       Task     @relation(fields: [taskId], references: [id], onDelete: Restrict)
+  actor      User     @relation(fields: [actorId], references: [id], onDelete: Restrict)
+
+  @@unique([taskId, revision])
+  @@map("task_revisions")
+}
+
+model ResourceGrant {
+  id           String             @id @default(uuid()) @db.Uuid
+  resourceId   String             @map("resource_id") @db.Uuid
+  userId       String?            @map("user_id") @db.Uuid
+  departmentId String?            @map("department_id") @db.Uuid
+  permission   ResourcePermission
+  grantedById  String             @map("granted_by_id") @db.Uuid
+  createdAt    DateTime           @default(now()) @map("created_at") @db.Timestamptz(3)
+  revokedAt    DateTime?          @map("revoked_at") @db.Timestamptz(3)
+  resource     Resource           @relation(fields: [resourceId], references: [id], onDelete: Restrict)
+  user         User?              @relation("Grantee", fields: [userId], references: [id], onDelete: Restrict)
+  department   Department?        @relation(fields: [departmentId], references: [id], onDelete: Restrict)
+  grantedBy    User               @relation("Grantor", fields: [grantedById], references: [id], onDelete: Restrict)
+
+  @@index([userId, revokedAt, resourceId])
+  @@index([departmentId, revokedAt, resourceId])
+  @@map("resource_grants")
+}
+
+model BusinessRecord {
+  id         String             @id @db.Uuid
+  number     Int                @unique @default(autoincrement())
+  title      String             @db.VarChar(200)
+  data       Json
+  revision   Int                @default(1)
+  parentId   String?            @map("parent_id") @db.Uuid
+  occurredOn DateTime?          @map("occurred_on") @db.Date
+  createdAt  DateTime           @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt  DateTime           @updatedAt @map("updated_at") @db.Timestamptz(3)
+  resource   Resource           @relation("BusinessResource", fields: [id], references: [id], onDelete: Restrict)
+  parent     Resource?          @relation("BusinessParent", fields: [parentId], references: [id], onDelete: Restrict)
+  revisions  BusinessRevision[]
+  versions   DocumentVersion[]
+  contacts   CompanyContact[]
+  movements  DocumentMovement[]
+  documentMetadata DocumentMetadata?
+
+  @@index([createdAt, id])
+  @@index([occurredOn, id])
+  @@index([parentId])
+  @@index([data], type: Gin)
+  @@map("business_records")
+}
+
+model BusinessRevision {
+  id         String         @id @default(uuid()) @db.Uuid
+  recordId   String         @map("record_id") @db.Uuid
+  revision   Int
+  actorId    String         @map("actor_id") @db.Uuid
+  snapshot   Json
+  occurredAt DateTime       @default(now()) @map("occurred_at") @db.Timestamptz(3)
+  record     BusinessRecord @relation(fields: [recordId], references: [id], onDelete: Restrict)
+  actor      User           @relation("BusinessActor", fields: [actorId], references: [id], onDelete: Restrict)
+
+  @@unique([recordId, revision])
+  @@map("business_revisions")
+}
+
+model RecordLink {
+  id        String   @id @default(uuid()) @db.Uuid
+  sourceId  String   @map("source_id") @db.Uuid
+  targetId  String   @map("target_id") @db.Uuid
+  kind      String
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  source    Resource @relation("LinkSource", fields: [sourceId], references: [id], onDelete: Restrict)
+  target    Resource @relation("LinkTarget", fields: [targetId], references: [id], onDelete: Restrict)
+
+  @@unique([sourceId, targetId, kind])
+  @@index([targetId, kind])
+  @@map("record_links")
+}
+
+model CompanyContact {
+  id          String         @id @default(uuid()) @db.Uuid
+  companyId   String         @map("company_id") @db.Uuid
+  displayName String         @map("display_name") @db.VarChar(120)
+  position    String         @default("") @db.VarChar(120)
+  email       String?        @db.VarChar(254)
+  phone       String         @default("") @db.VarChar(50)
+  active      Boolean        @default(true)
+  revision    Int            @default(1)
+  company     BusinessRecord @relation(fields: [companyId], references: [id], onDelete: Restrict)
+
+  @@index([companyId, active, id])
+  @@map("company_contacts")
+}
+
+model ResourceComment {
+  id         String    @id @default(uuid()) @db.Uuid
+  resourceId String    @map("resource_id") @db.Uuid
+  authorId   String    @map("author_id") @db.Uuid
+  text       String    @db.VarChar(4000)
+  revision   Int       @default(1)
+  archivedAt DateTime? @map("archived_at") @db.Timestamptz(3)
+  createdAt  DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt  DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
+  resource   Resource  @relation(fields: [resourceId], references: [id], onDelete: Restrict)
+  author     User      @relation(fields: [authorId], references: [id], onDelete: Restrict)
+
+  edits CommentRevision[]
+
+  @@index([resourceId, createdAt, id])
+  @@map("resource_comments")
+}
+
+model Mention {
+  id          String @id @default(uuid()) @db.Uuid
+  sourceId    String @map("source_id") @db.Uuid
+  targetType  String @map("target_type")
+  targetId    String @map("target_id") @db.Uuid
+  recipientId String @map("recipient_id") @db.Uuid
+  recipient   User   @relation("MentionRecipient", fields: [recipientId], references: [id], onDelete: Restrict)
+
+  @@unique([sourceId, targetType, targetId, recipientId])
+  @@map("mentions")
+}
+
+model OutboxJob {
+  id          String    @id @default(uuid()) @db.Uuid
+  key         String    @unique
+  kind        String
+  resourceId  String?   @map("resource_id") @db.Uuid
+  recipientId String?   @map("recipient_id") @db.Uuid
+  payload     Json
+  status      String    @default("pending")
+  attempts    Int       @default(0)
+  leaseUntil  DateTime? @map("lease_until") @db.Timestamptz(3)
+  availableAt DateTime  @default(now()) @map("available_at") @db.Timestamptz(3)
+  errorCode   String?   @map("error_code")
+  createdAt   DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  recipient User? @relation("JobRecipient", fields: [recipientId], references: [id], onDelete: Restrict)
+
+  @@index([status, availableAt])
+  @@map("outbox_jobs")
+}
+
+model Notification {
+  id          String    @id @default(uuid()) @db.Uuid
+  key         String    @unique
+  resourceId  String    @map("resource_id") @db.Uuid
+  recipientId String    @map("recipient_id") @db.Uuid
+  kind        String
+  readAt      DateTime? @map("read_at") @db.Timestamptz(3)
+  createdAt   DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  resource    Resource  @relation(fields: [resourceId], references: [id], onDelete: Restrict)
+  recipient   User      @relation("NotificationRecipient", fields: [recipientId], references: [id], onDelete: Restrict)
+
+  @@index([recipientId, readAt, createdAt, id])
+  @@map("notifications")
+}
+
+model DocumentVersion {
+  id         String         @id @default(uuid()) @db.Uuid
+  documentId String         @map("document_id") @db.Uuid
+  number     Int
+  filename   String         @db.VarChar(200)
+  mime       String         @db.VarChar(100)
+  bytes      Int
+  sha256     String         @db.Char(64)
+  storageKey String         @unique @map("storage_key")
+  state      String         @default("quarantined")
+  scanError  String?        @map("scan_error")
+  createdAt  DateTime       @default(now()) @map("created_at") @db.Timestamptz(3)
+  uploadedById String?      @map("uploaded_by_id") @db.Uuid
+  note       String        @default("") @db.VarChar(500)
+  document   BusinessRecord @relation(fields: [documentId], references: [id], onDelete: Restrict)
+
+  @@unique([documentId, number])
+  @@index([state, createdAt])
+  @@map("document_versions")
+}
+
+model DocumentMovement {
+  id             String         @id @default(uuid()) @db.Uuid
+  documentId     String         @map("document_id") @db.Uuid
+  direction      String
+  occurredOn     DateTime       @map("occurred_on") @db.Date
+  counterpartyId String?        @map("counterparty_id") @db.Uuid
+  reference      String         @default("") @db.VarChar(200)
+  note           String         @default("") @db.VarChar(2000)
+  counterpartyName String        @default("") @map("counterparty_name") @db.VarChar(200)
+  actorId        String         @map("actor_id") @db.Uuid
+  createdAt      DateTime       @default(now()) @map("created_at") @db.Timestamptz(3)
+  document       BusinessRecord @relation(fields: [documentId], references: [id], onDelete: Restrict)
+  counterparty   Resource?      @relation("MovementParty", fields: [counterpartyId], references: [id], onDelete: Restrict)
+  actor          User           @relation("MovementActor", fields: [actorId], references: [id], onDelete: Restrict)
+
+  @@index([documentId, occurredOn, id])
+  @@index([counterpartyId, occurredOn, id])
+  @@map("document_movements")
+}
+
+model DocumentFolder {
+  id           String   @id @default(uuid()) @db.Uuid
+  name         String   @db.VarChar(120)
+  parentId     String?  @map("parent_id") @db.Uuid
+  departmentId String   @map("department_id") @db.Uuid
+  createdById  String   @map("created_by_id") @db.Uuid
+  revision     Int      @default(1)
+  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  parent       DocumentFolder? @relation("FolderTree", fields: [parentId], references: [id], onDelete: Restrict)
+  children     DocumentFolder[] @relation("FolderTree")
+  documents    DocumentMetadata[]
+
+  @@index([departmentId, parentId])
+  @@map("document_folders")
+}
+
+model DocumentMetadata {
+  documentId     String @id @map("document_id") @db.Uuid
+  departmentId   String @map("department_id") @db.Uuid
+  folderId       String? @map("folder_id") @db.Uuid
+  registryNumber String? @map("registry_number") @db.VarChar(100)
+  document       BusinessRecord @relation(fields: [documentId], references: [id], onDelete: Restrict)
+  folder         DocumentFolder? @relation(fields: [folderId], references: [id], onDelete: Restrict)
+
+  @@unique([departmentId, registryNumber])
+  @@index([folderId])
+  @@map("document_metadata")
+}
+
+model CommentRevision {
+  id         String          @id @default(uuid()) @db.Uuid
+  commentId  String          @map("comment_id") @db.Uuid
+  revision   Int
+  actorId    String          @map("actor_id") @db.Uuid
+  text       String          @db.VarChar(4000)
+  archived   Boolean         @default(false)
+  occurredAt DateTime        @default(now()) @map("occurred_at") @db.Timestamptz(3)
+  comment    ResourceComment @relation(fields: [commentId], references: [id], onDelete: Restrict)
+  actor      User            @relation(fields: [actorId], references: [id], onDelete: Restrict)
+
+  @@unique([commentId, revision])
+  @@map("comment_revisions")
+}
+
+model BusinessEvent {
+  id         String   @id @default(uuid()) @db.Uuid
+  key        String   @unique
+  companyId  String   @map("company_id") @db.Uuid
+  sourceId   String   @map("source_id") @db.Uuid
+  type       String
+  occurredOn DateTime @map("occurred_on") @db.Date
+  recordedAt DateTime @default(now()) @map("recorded_at") @db.Timestamptz(3)
+  detail     Json
+  company    Resource @relation("TimelineCompany", fields: [companyId], references: [id], onDelete: Restrict)
+  source     Resource @relation("TimelineSource", fields: [sourceId], references: [id], onDelete: Restrict)
+
+  @@index([companyId, occurredOn, id])
+  @@map("business_events")
+}

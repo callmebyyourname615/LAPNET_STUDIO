@@ -1,0 +1,80 @@
+name: lapnet-portal
+services:
+  db:
+    image: postgres:18.3-bookworm@sha256:80630f83606d8db77d30b3851b16a9f78be2d0d4dda6f7b82a1fdca5ebe3acba
+    environment:
+      POSTGRES_USER: lapnet_bootstrap
+      POSTGRES_DB: postgres
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set a bootstrap password}
+      RUNTIME_PASSWORD: ${RUNTIME_PASSWORD:?Set a runtime password}
+      MIGRATOR_PASSWORD: ${MIGRATOR_PASSWORD:?Set a migrator password}
+      POSTGRES_INITDB_ARGS: --auth-host=scram-sha-256
+    volumes:
+      - postgres:/var/lib/postgresql
+      - ../database/init.sh:/docker-entrypoint-initdb.d/10-init.sh:ro
+      - ../database/bootstrap.sql:/docker-entrypoint-initdb.d/bootstrap.sql.template:ro
+    networks: [private]
+    healthcheck:
+      test: [CMD-SHELL, 'PGPASSWORD="$$MIGRATOR_PASSWORD" psql -h 127.0.0.1 -U lapnet_migrator -d lapnet_dev -qAt -c "SELECT 1" >/dev/null']
+      interval: 10s
+      timeout: 3s
+      retries: 5
+    restart: unless-stopped
+    mem_limit: 512m
+    logging: &logging
+      driver: json-file
+      options: { max-size: 10m, max-file: '3' }
+
+  migrate:
+    profiles: [tools]
+    build: { context: ../.., dockerfile: infra/Dockerfile, target: migrate }
+    environment:
+      MIGRATION_DATABASE_URL: postgresql://lapnet_migrator:${MIGRATOR_PASSWORD:?Set a migrator password}@db:5432/lapnet_dev
+    networks: [private]
+    depends_on: { db: { condition: service_healthy } }
+    logging: *logging
+
+  api:
+    build: { context: ../.., dockerfile: infra/Dockerfile, target: api }
+    environment:
+      NODE_ENV: production
+      API_HOST: 0.0.0.0
+      API_PORT: '3100'
+      APP_ORIGIN: ${APP_ORIGIN:?Set the trusted HTTPS portal origin}
+      API_TRUST_PROXY: '1'
+      DATABASE_URL: postgresql://lapnet_runtime:${RUNTIME_PASSWORD:?Set a runtime password}@db:5432/lapnet_dev
+      RELEASE_REVISION: ${RELEASE_REVISION:-development}
+    networks: [private, edge]
+    volumes:
+      - documents:/app/storage/documents
+      - quarantine:/app/storage/quarantine
+    depends_on: { db: { condition: service_healthy } }
+    restart: unless-stopped
+    read_only: true
+    tmpfs: [/tmp]
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    mem_limit: 256m
+    logging: *logging
+
+  web:
+    build: { context: ../.., dockerfile: infra/Dockerfile, target: web }
+    ports: ['127.0.0.1:${WEB_PORT:-8088}:8080']
+    networks: [edge]
+    depends_on: { api: { condition: service_healthy } }
+    user: '101:101'
+    read_only: true
+    tmpfs: [/tmp, /var/cache/nginx, /var/run:mode=1777]
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    restart: unless-stopped
+    mem_limit: 64m
+    logging: *logging
+
+networks:
+  private: { internal: true }
+  edge: {}
+volumes:
+  postgres: {}
+  documents: {}
+  quarantine: {}

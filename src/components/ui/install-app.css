@@ -1,0 +1,56 @@
+.pwa-install-button {
+  gap: 8px;
+  white-space: nowrap;
+}
+.pwa-install-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+  background: #0009;
+}
+.pwa-install-dialog {
+  position: fixed;
+  inset: 50% auto auto 50%;
+  transform: translate(-50%, -50%);
+  z-index: 81;
+  width: min(460px, calc(100vw - 32px));
+  max-height: calc(100dvh - 32px);
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  color: var(--color-text-primary);
+  font: 400 14px/1.7 var(--font-sans);
+  border-radius: var(--radius-lg);
+}
+.pwa-install-dialog img {
+  border-radius: var(--radius-lg);
+}
+.pwa-install-dialog h2 {
+  padding-inline-end: 28px;
+}
+.pwa-install-dialog p {
+  color: var(--color-text-secondary);
+}
+.pwa-install-dialog strong {
+  color: var(--color-text-primary);
+}
+.pwa-install-close {
+  position: absolute;
+  inset: 12px 12px auto auto;
+}
+.pwa-install-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+}
+@media (max-width: 767px) {
+  .pwa-install-button > span:not([data-skeleton]) {
+    display: none;
+  }
+  .pwa-install-button {
+    padding: 8px;
+    min-width: 40px;
+  }
+}

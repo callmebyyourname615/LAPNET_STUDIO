@@ -1,0 +1,27 @@
+{
+  "date": "2026-11-18",
+  "scope": "Personal account Settings and Image Studio with crop, rotation and color adjustments",
+  "framework": {
+    "value": "React 19 / Vite 8 / Tailwind 4 / TypeScript",
+    "source": "package.json"
+  },
+  "font": {
+    "value": "Noto Sans Lao (self hosted)",
+    "source": "src/index.css:29"
+  },
+  "palette": {
+    "value": "Existing charcoal surfaces, white primary actions, shared focus and semantic state colors",
+    "source": "src/index.css :root"
+  },
+  "motion": {
+    "value": "GSAP and @gsap/react installed; scoped transform/opacity menu and settings-card animations with reduced-motion support",
+    "source": "package.json and src/index.css"
+  },
+  "spacing": "4px scale; component spacing in tokens.css",
+  "preserve": [
+    "Portal palette",
+    "Typography",
+    "Routes and authentication",
+    "Platform selection while navigating shared pages"
+  ]
+}

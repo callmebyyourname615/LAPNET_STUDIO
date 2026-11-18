@@ -1,0 +1,137 @@
+/* Hallmark · component: account menu · theme: existing portal · tone: utilitarian
+ * pre-emit critique: P5 H5 E5 S5 R5 V4 · tokens: pass · icons: Lucide
+ */
+.profile-menu {
+  z-index: var(--z-profile-menu);
+  width: var(--size-profile-menu);
+  max-width: calc(100vw - var(--space-profile-viewport));
+  padding: var(--space-profile-inset);
+  overflow: hidden;
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-xl);
+  background: var(--color-bg-surface);
+  color: var(--color-text-primary);
+  font: 400 var(--text-profile-body)/1.5 var(--font-sans);
+  box-shadow: var(--shadow-profile-menu);
+  transform-origin: var(--radix-dropdown-menu-content-transform-origin);
+}
+.profile-menu-identity {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: var(--space-profile-small);
+  padding: var(--space-profile-label);
+}
+.profile-menu-identity strong {
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+.profile-menu-identity span {
+  color: var(--color-text-secondary);
+  font-size: var(--text-profile-caption);
+  overflow-wrap: anywhere;
+}
+.profile-menu-divider {
+  height: 1px;
+  margin: var(--space-profile-small) var(--space-profile-inset);
+  background: var(--color-border-subtle);
+}
+.profile-menu-item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-profile-gap);
+  min-height: var(--size-profile-target);
+  padding: 0 var(--space-profile-label);
+  border-radius: var(--radius-md);
+  color: var(--color-text-primary);
+  cursor: pointer;
+  white-space: nowrap;
+}
+.profile-menu-item svg {
+  flex: none;
+}
+.profile-menu-item:hover,
+.profile-menu-item[data-highlighted] {
+  background: var(--color-bg-hover);
+}
+.profile-menu-item:focus-visible {
+  outline: 2px solid var(--color-focus);
+  outline-offset: -2px;
+}
+.profile-menu-item:active {
+  background: var(--color-bg-raised);
+}
+.profile-menu-item[data-disabled] {
+  cursor: default;
+  opacity: 0.5;
+}
+.profile-menu-logout {
+  color: var(--danger-fg);
+}
+.profile-menu-logout:hover,
+.profile-menu-logout[data-highlighted] {
+  background: var(--danger-bg);
+}
+.profile-menu-error {
+  margin: var(--space-profile-inset);
+  padding: var(--space-profile-label);
+  border-radius: var(--radius-md);
+  background: var(--danger-bg);
+  color: var(--danger-fg);
+  font-size: var(--text-profile-caption);
+  overflow-wrap: anywhere;
+}
+.user-chip[data-state="open"] {
+  background: var(--color-bg-raised);
+  border-radius: var(--radius-md);
+}
+.user-chip:hover {
+  background: var(--color-bg-hover);
+}
+.user-chip:active {
+  background: var(--color-bg-raised);
+}
+.top-actions .user-chip {
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+.top-actions .user-chip > span:not(.avatar) {
+  min-width: 0;
+  max-width: 9rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+@media (max-width: 900px) {
+  .top-actions .user-chip {
+    display: flex;
+    justify-content: center;
+    min-width: var(--size-profile-target);
+    min-height: var(--size-profile-target);
+    padding: var(--space-profile-small);
+  }
+  .top-actions .user-chip .avatar {
+    display: inline-grid;
+  }
+  .top-actions .user-chip > span:not(.avatar) {
+    display: none;
+  }
+}
+.profile-menu-preview {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(17rem, 1fr));
+  gap: var(--space-profile-viewport);
+  padding: var(--space-profile-viewport);
+}
+.profile-menu-preview section > h2 {
+  margin-bottom: var(--space-profile-label);
+}
+.profile-menu-preview .profile-menu-item {
+  width: 100%;
+}
+.profile-menu[data-preview="focus"] .profile-menu-item:last-child {
+  outline: 2px solid var(--color-focus);
+  outline-offset: -2px;
+}
+.profile-menu[data-preview="active"] .profile-menu-item:last-child {
+  background: var(--danger-bg);
+}
