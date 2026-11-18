@@ -3691,64 +3691,42 @@
             }
           },
           {
-            "name": "q",
+            "name": "view",
             "required": false,
             "in": "query",
             "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "companyId",
-            "required": false,
-            "in": "query",
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "direction",
-            "required": false,
-            "in": "query",
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "kind",
-            "required": false,
-            "in": "query",
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "departmentId",
-            "required": false,
-            "in": "query",
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "from",
-            "required": false,
-            "in": "query",
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "to",
-            "required": false,
-            "in": "query",
-            "schema": {
-              "type": "string"
+              "type": "string",
+              "enum": [
+                "all",
+                "unread",
+                "mentions",
+                "tasks",
+                "comments"
+              ]
             }
           }
         ],
         "responses": {
           "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "cookie": []
+          }
+        ],
+        "tags": [
+          "Discovery and documents"
+        ]
+      }
+    },
+    "/api/v1/notifications/read-all": {
+      "post": {
+        "operationId": "OperationsController_readAll",
+        "parameters": [],
+        "responses": {
+          "201": {
             "description": ""
           }
         },

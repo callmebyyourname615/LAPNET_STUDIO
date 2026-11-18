@@ -2,7 +2,8 @@ import { apiErrorSchema, versionSchema } from "@lapnet/contracts";
 import { toast } from "./toast";
 
 function mutationSuccess(path: string, method: string) {
-  if (path === "/auth/login") return;
+  if (path === "/auth/login" || /^\/api\/v1\/notifications\/(?:[^/]+\/read|read-all)$/.test(path))
+    return;
   if (path === "/auth/logout") {
     toast.clear();
     return;
@@ -56,7 +57,11 @@ function mutationFailure(error: unknown, limitMiB = 25) {
     ],
   };
   if (error instanceof ApiError && error.status === 413) {
-    toast.error(en ? `The file exceeds the ${limitMiB} MiB upload limit.` : `ໄຟລ໌ໃຫຍ່ເກີນຂະໜາດອັບໂຫຼດ ${limitMiB} MiB.`);
+    toast.error(
+      en
+        ? `The file exceeds the ${limitMiB} MiB upload limit.`
+        : `ໄຟລ໌ໃຫຍ່ເກີນຂະໜາດອັບໂຫຼດ ${limitMiB} MiB.`,
+    );
     return;
   }
   const copy = error instanceof ApiError ? messages[error.code] : undefined;
@@ -157,13 +162,15 @@ export async function uploadFile(
   const accountImage = /^\/api\/v1\/me\/images\/(avatar|cover)$/.test(path);
   if (
     !/^\/api\/v1\/documents\/[a-f0-9-]+\/versions$/.test(path) &&
-    path !== "/api/v1/document-workspace/register" && !accountImage
+    path !== "/api/v1/document-workspace/register" &&
+    !accountImage
   )
     throw new Error("Invalid upload path");
   try {
-    if (file.size > (accountImage?8:25) * 1024 * 1024) throw new ApiError(413, "VALIDATION_FAILED");
+    if (file.size > (accountImage ? 8 : 25) * 1024 * 1024)
+      throw new ApiError(413, "VALIDATION_FAILED");
     const response = await fetch(path, {
-      method: accountImage?'PUT':'POST',
+      method: accountImage ? "PUT" : "POST",
       credentials: "same-origin",
       signal: options?.signal,
       headers: {
@@ -194,7 +201,7 @@ export async function uploadFile(
       !options?.signal?.aborted &&
       !(error instanceof DOMException && error.name === "AbortError")
     )
-      mutationFailure(error,accountImage?8:25);
+      mutationFailure(error, accountImage ? 8 : 25);
     throw error;
   }
 }

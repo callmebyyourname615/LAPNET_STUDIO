@@ -532,17 +532,26 @@ export const movementsSchema = z.array(
     createdAt: z.string(),
   }),
 );
+export const notificationItemSchema = z.object({
+  id: z.uuid(),
+  kind: z.string(),
+  title: z.string(),
+  href: z.string(),
+  readAt: z.string().nullable(),
+  createdAt: z.string(),
+  resourceKind: z.string().optional(),
+  code: z.string().optional(),
+  actor: z
+    .object({ id: z.uuid(), displayName: z.string(), department: z.string().nullable() })
+    .nullable()
+    .default(null),
+  excerpt: z.string().nullable().default(null),
+});
+export type NotificationItem = z.infer<typeof notificationItemSchema>;
 export const notificationsSchema = z.object({
-  items: z.array(
-    z.object({
-      id: z.uuid(),
-      kind: z.string(),
-      title: z.string(),
-      href: z.string(),
-      readAt: z.string().nullable(),
-      createdAt: z.string(),
-    }),
-  ),
+  items: z.array(notificationItemSchema),
+  total: z.number().int().default(0),
+  counts: z.array(z.object({ kind: z.string(), count: z.number().int() })).default([]),
   unread: z.number().int(),
   nextCursor: z.string().nullable(),
 });

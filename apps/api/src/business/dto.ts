@@ -65,6 +65,12 @@ export class RecordQuery extends PaginationQuery {
   @ApiPropertyOptional() @IsOptional() @Matches(/^\d{4}-\d{2}-\d{2}$/) from?: string;
   @ApiPropertyOptional() @IsOptional() @Matches(/^\d{4}-\d{2}-\d{2}$/) to?: string;
 }
+export class NotificationQuery extends PaginationQuery {
+  @ApiPropertyOptional({ enum: ["all", "unread", "mentions", "tasks", "comments"] })
+  @IsOptional()
+  @IsIn(["all", "unread", "mentions", "tasks", "comments"])
+  view?: "all" | "unread" | "mentions" | "tasks" | "comments";
+}
 export class CommentInput {
   @ApiProperty() @IsString() @Length(1, 4000) text!: string;
   @ApiPropertyOptional() @IsOptional() @IsInt() @Min(1) revision?: number;

@@ -1,3 +1,4 @@
+import { NotificationBell, NOTIFICATIONS_CHANGED } from "./features/notifications/NotificationCenter";
 import {notificationsSchema} from '@lapnet/contracts';
 import {useTaskData} from './features/tasks/api';
 import { Skeleton } from "./components/ui/skeleton";
@@ -393,14 +394,7 @@ function PortalHeaderActions({ go, unread }: { go: (path: string) => void; unrea
         <button className="icon-button" aria-label={t("Search")} onClick={()=>go("/search")}>
           <Icon name="search" />
         </button>
-        <button
-          className="notification-button"
-          aria-label={t("Notifications")}
-          onClick={() => go("/notifications")}
-        >
-          <Icon name="bell" />
-          {!!unread&&<span />}
-        </button>
+        <NotificationBell go={go} unread={unread} />
         <ProfileMenu go={go}><button className="user-chip" aria-label="ບັນຊີຂອງຂ້ອຍ">
           <AccountAvatar small />
           <span>{me?.user.displayName}</span>
@@ -1848,7 +1842,7 @@ function Portal() {
   const go = (next: string) => navigate(documentMode && !isDocumentWorkspace(next) ? '/document-workspace/portal' + next : next);
   const [drawer, setDrawer] = useState(false);
   const notifications=useTaskData('/api/v1/notifications?limit=1',notificationsSchema);
-  useEffect(()=>{const timer=setInterval(()=>{if(!document.hidden)notifications.reload();},30000);return()=>clearInterval(timer);},[notifications.reload]);
+  useEffect(()=>{const timer=setInterval(()=>{if(!document.hidden)notifications.reload();},30000);window.addEventListener(NOTIFICATIONS_CHANGED,notifications.reload);return()=>{clearInterval(timer);window.removeEventListener(NOTIFICATIONS_CHANGED,notifications.reload);};},[notifications.reload]);
   const title = path==='/admin/audit'?'ປະຫວັດການໃຊ້ງານ':path==='/settings'?'ຕັ້ງຄ່າ':path==='/search'?'Search':path==='/account'?'ບັນຊີຂອງຂ້ອຍ':path.startsWith('/tasks')?'Tasks':path.startsWith('/documents')?'Documents':path.startsWith('/companies')?'Companies':path.startsWith('/feed')?'Work Feed':path.startsWith('/notifications')?'Notifications':path.startsWith('/admin')?'Administration':'Dashboard';
   const taskId=path.match(/^\/tasks\/([^/]+)/)?.[1];
   const content=useMemo(()=>{
@@ -1858,7 +1852,7 @@ function Portal() {
     if(path==='/settings')return <SettingsPage/>;
     if(path==='/admin/audit')return <AuditLogs/>;
     if(path==='/search')return <PortalSearch query={query} go={go}/>;
-    if(path==='/notifications')return <PortalNotifications go={go} onChanged={notifications.reload}/>;
+    if(path==='/notifications')return <PortalNotifications go={go}/>;
     const kinds=[['feed','post'],['companies','company'],['documents','document'],['interactions','interaction']] as const;
     for(const [segment,kind]of kinds){const match=path.match(new RegExp('^/'+segment+'(?:/([^/]+))?$'));if(match)return <PortalRecords key={path} kind={kind} id={match[1]} query={query} go={go}/>;}
     const companyInteraction=path.match(/^\/companies\/([^/]+)\/interactions\/new$/);if(companyInteraction)return <PortalRecords kind="interaction" id="new" query={'companyId='+companyInteraction[1]} go={go}/>;

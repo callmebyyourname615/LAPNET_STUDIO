@@ -2,7 +2,7 @@ import { Controller, Get, Param, ParseUUIDPipe, Post, Query, Req, Res } from "@n
 import { ApiCookieAuth, ApiTags } from "@nestjs/swagger";
 import type { Response } from "express";
 import type { PortalRequest } from "../http";
-import { RecordQuery } from "./dto";
+import { NotificationQuery, RecordQuery } from "./dto";
 import { DiscoveryService } from "./discovery.service";
 import { FilesService } from "./files.service";
 @ApiCookieAuth()
@@ -16,8 +16,11 @@ export class OperationsController {
   @Get("search") search(@Req() r: PortalRequest, @Query() q: RecordQuery) {
     return this.discovery.search(r.principal!.user.id, q);
   }
-  @Get("notifications") notifications(@Req() r: PortalRequest, @Query() q: RecordQuery) {
+  @Get("notifications") notifications(@Req() r: PortalRequest, @Query() q: NotificationQuery) {
     return this.discovery.notifications(r.principal!.user.id, q);
+  }
+  @Post("notifications/read-all") readAll(@Req() r: PortalRequest) {
+    return this.discovery.readAll(r.principal!.user.id);
   }
   @Post("notifications/:id/read") read(
     @Req() r: PortalRequest,

@@ -141,3 +141,32 @@
   --text-platform-label: 0.875rem;
   --size-platform-target: 2.75rem;
 }
+
+/* Notifications: preserve Portal colors, type and focus; compact preview + full inbox. */
+:root {
+  --size-notification-popover: 30rem;
+  --size-notification-page: 76rem;
+  --size-notification-sidebar: 16rem;
+  --size-notification-target: 2.75rem;
+  --size-notification-avatar: 2.5rem;
+  --space-notification-xs: 0.25rem;
+  --space-notification-sm: 0.5rem;
+  --space-notification-md: 0.75rem;
+  --space-notification-card: 1rem;
+  --space-notification-section: 1.5rem;
+  --radius-notification-panel: 1rem;
+  --radius-notification-row: 0.75rem;
+  --text-notification-body: 0.875rem;
+  --text-notification-small: 0.75rem;
+  --text-notification-heading: 1.125rem;
+  --color-notification-unread: color-mix(in srgb, var(--color-bg-hover) 68%, var(--color-bg-surface));
+  --color-notification-rule: var(--color-border-subtle);
+  --shadow-notification-panel: var(--shadow-profile-menu);
+  --z-notification-popover: 310;
+  --z-notification-actions: 320;
+  --duration-notification-enter: 220ms;
+  --duration-notification-exit: 120ms;
+  --duration-notification-page: 240ms;
+  --distance-notification-enter: 8px;
+  --ease-notification-feedback: cubic-bezier(0.2, 0, 0, 1);
+}

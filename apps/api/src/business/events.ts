@@ -11,7 +11,13 @@ export async function enqueueNotification(
     const key = `${eventKey}:${recipientId}`;
     await tx.outboxJob.upsert({
       where: { key },
-      create: { key, kind: "notify", resourceId, recipientId, payload: { notificationKind: kind } },
+      create: {
+        key,
+        kind: "notify",
+        resourceId,
+        recipientId,
+        payload: { notificationKind: kind, ...(actor ? { actorId: actor } : {}) },
+      },
       update: {},
     });
   }

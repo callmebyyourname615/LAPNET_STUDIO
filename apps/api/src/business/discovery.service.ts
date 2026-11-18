@@ -1,7 +1,8 @@
 import { Injectable, NotFoundException } from "@nestjs/common";
 import type { Prisma } from "@lapnet/database";
 import { BusinessService, afterCursor, decodeCursor, encodeCursor } from "./business.service";
-import { RecordQuery } from "./dto";
+import { NotificationQuery, RecordQuery } from "./dto";
+import { current } from "../identity/authorization.service";
 
 @Injectable()
 export class DiscoveryService {
@@ -96,7 +97,7 @@ export class DiscoveryService {
       { isolationLevel: "RepeatableRead" },
     );
   }
-  async notifications(actor: string, q: RecordQuery) {
+  async notifications(actor: string, q: NotificationQuery) {
     return this.business.database.client.$transaction(
       async (tx) => {
         const context = await this.business.authorization.context(actor, tx);
@@ -104,28 +105,161 @@ export class DiscoveryService {
           recipientId: actor,
           resource: this.business.authorization.where(context),
         };
+        const filter: Prisma.NotificationWhereInput =
+          q.view === "unread"
+            ? { readAt: null }
+            : q.view === "mentions"
+              ? { kind: "mention" }
+              : q.view === "comments"
+                ? { kind: "comment" }
+                : q.view === "tasks"
+                  ? { kind: { in: ["assignment", "status", "due_today", "overdue"] } }
+                  : {};
         const unread = await tx.notification.count({ where: { ...where, readAt: null } });
+        const total = await tx.notification.count({ where });
+        const counts = await tx.notification.groupBy({
+          by: ["kind"],
+          where,
+          _count: { _all: true },
+          orderBy: { kind: "asc" },
+        });
         const rows = await tx.notification.findMany({
-          where: { AND: [where, ...afterCursor(decodeCursor(q.cursor))] },
+          where: { AND: [where, filter, ...afterCursor(decodeCursor(q.cursor))] },
           include: { resource: { include: { business: true, task: true } } },
           orderBy: [{ createdAt: "desc" }, { id: "desc" }],
           take: q.limit + 1,
         });
+        const visible = rows.slice(0, q.limit);
+        if (!visible.length)
+          return {
+            total,
+            unread,
+            counts: counts.map((row) => ({ kind: row.kind, count: row._count._all })),
+            items: [],
+            nextCursor: null,
+          };
+        const jobs = await tx.outboxJob.findMany({
+          where: { key: { in: visible.map((row) => row.key) }, recipientId: actor, kind: "notify" },
+          select: { key: true, payload: true },
+        });
+        const uuid = /^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$/i;
+        const actors = new Map<string, string>();
+        for (const job of jobs) {
+          const value = (job.payload as Prisma.JsonObject)?.actorId;
+          if (typeof value === "string" && uuid.test(value)) actors.set(job.key, value);
+        }
+        // Resolve current authorized content, never a private text snapshot in the outbox.
+        const source = (key: string) => {
+          const id = key.match(/^(?:comment|mention):([a-f0-9-]{36}):/i)?.[1];
+          return id && uuid.test(id) ? id : undefined;
+        };
+        const sources = visible.flatMap((row) => {
+          const id = source(row.key);
+          return id ? [id] : [];
+        });
+        const comments = await tx.resourceComment.findMany({
+          where: {
+            id: { in: sources },
+            resourceId: { in: visible.map((row) => row.resourceId) },
+            archivedAt: null,
+          },
+          select: { id: true, resourceId: true, text: true, authorId: true },
+        });
+        const revisions = visible.flatMap((row) => {
+          const match = row.key.match(/^task:([a-f0-9-]{36}):(\d+):/i);
+          return match &&
+            match[1] === row.resourceId &&
+            Number(match[2]) >= 1 &&
+            Number(match[2]) <= 2147483647
+            ? [{ taskId: row.resourceId, revision: Number(match[2]) }]
+            : [];
+        });
+        const taskEvents = revisions.length
+          ? await tx.taskRevision.findMany({
+              where: { OR: revisions },
+              select: { taskId: true, revision: true, actorId: true },
+            })
+          : [];
+        for (const row of visible) {
+          if (actors.has(row.key)) continue;
+          const comment = comments.find(
+            (item) => item.id === source(row.key) && item.resourceId === row.resourceId,
+          );
+          const event = taskEvents.find((item) =>
+            row.key.startsWith(`task:${item.taskId}:${item.revision}:`),
+          );
+          const actorId = comment?.authorId ?? event?.actorId;
+          if (actorId) actors.set(row.key, actorId);
+        }
+        const users = await tx.user.findMany({
+          where: { id: { in: [...new Set(actors.values())] } },
+          select: {
+            id: true,
+            displayName: true,
+            memberships: {
+              where: { ...current(), department: { active: true } },
+              select: { department: { select: { name: true } } },
+              orderBy: { department: { code: "asc" } },
+            },
+          },
+        });
+        const prefixes: Record<string, string> = {
+          task: "TSK",
+          document: "REG",
+          company: "CO",
+          interaction: "INT",
+          post: "POST",
+        };
         return {
+          total,
           unread,
-          items: rows.slice(0, q.limit).map((row) => ({
-            id: row.id,
-            kind: row.kind,
-            title: row.resource.business?.title ?? row.resource.task?.title ?? "",
-            href: this.business.href(row.resource.kind, row.resourceId),
-            readAt: row.readAt?.toISOString() ?? null,
-            createdAt: row.createdAt.toISOString(),
-          })),
+          counts: counts.map((row) => ({ kind: row.kind, count: row._count._all })),
+          items: visible.map((row) => {
+            const user = users.find((user) => user.id === actors.get(row.key));
+            const comment = comments.find(
+              (item) => item.id === source(row.key) && item.resourceId === row.resourceId,
+            );
+            return {
+              id: row.id,
+              kind: row.kind,
+              title: row.resource.business?.title ?? row.resource.task?.title ?? "",
+              href: this.business.href(row.resource.kind, row.resourceId),
+              readAt: row.readAt?.toISOString() ?? null,
+              createdAt: row.createdAt.toISOString(),
+              resourceKind: row.resource.kind,
+              code: `${prefixes[row.resource.kind]}-${row.resource.task?.number ?? row.resource.business?.number ?? ""}`,
+              actor: user
+                ? {
+                    id: user.id,
+                    displayName: user.displayName,
+                    department:
+                      user.memberships.map((item) => item.department.name).join(" · ") || null,
+                  }
+                : null,
+              excerpt: comment?.text.slice(0, 240) ?? null,
+            };
+          }),
           nextCursor: rows.length > q.limit ? encodeCursor(rows[q.limit - 1]) : null,
         };
       },
       { isolationLevel: "RepeatableRead" },
     );
+  }
+  async readAll(actor: string) {
+    return this.business.database.client.$transaction(async (tx) => {
+      const context = await this.business.authorization.context(actor, tx);
+      const now = new Date();
+      const result = await tx.notification.updateMany({
+        where: {
+          recipientId: actor,
+          readAt: null,
+          createdAt: { lte: now },
+          resource: this.business.authorization.where(context),
+        },
+        data: { readAt: now },
+      });
+      return { read: true, count: result.count };
+    });
   }
   async read(actor: string, id: string) {
     const context = await this.business.authorization.context(actor);

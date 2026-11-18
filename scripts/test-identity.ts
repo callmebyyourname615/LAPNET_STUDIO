@@ -10,9 +10,15 @@ async function main() {
   requireLocalDevelopment(env);
   if (!env.MIGRATION_DATABASE_URL || !env.DATABASE_URL || !env.POSTGRES_PASSWORD)
     throw new Error("Missing development database configuration");
-  const suite = ["tasks", "team", "business", "documents", "account", "audit"].includes(
-    process.argv[2] ?? "",
-  )
+  const suite = [
+    "tasks",
+    "team",
+    "notifications",
+    "business",
+    "documents",
+    "account",
+    "audit",
+  ].includes(process.argv[2] ?? "")
     ? process.argv[2]
     : "identity";
   const name = "lapnet_identity_" + randomBytes(8).toString("hex");
