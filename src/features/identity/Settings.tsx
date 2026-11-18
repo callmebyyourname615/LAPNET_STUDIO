@@ -377,7 +377,7 @@ function ProfileForm({ onSaved }: { onSaved: () => void }) {
     [error, setError] = useState("");
   const fields = [
     ["fullName", en ? "Full name" : "ຊື່-ນາມສະກຸນ", 200, "text"],
-    ["displayName", en ? "Display name / nickname" : "ຊື່ທີ່ສະແດງ / ຊື່ຫຼິ້ນ", 120, "text"],
+    ["displayName", "A.K.A.", 120, "text"],
     ["contactEmail", en ? "Contact email" : "ອີເມວຕິດຕໍ່", 254, "email"],
     ["phone", en ? "Phone number" : "ເບີໂທລະສັບ", 40, "tel"],
   ] as const;
