@@ -11,6 +11,8 @@ import {
   workspaceDocumentDetailSchema,
   workspaceDocumentPageSchema,
   documentWorkspaceConfigSchema,
+  taskDocumentsSchema,
+  commentsSchema,
 } from "@lapnet/contracts";
 import { createApplication } from "../src/app";
 import { hashPassword, randomSecret } from "../src/identity/password";
@@ -455,6 +457,83 @@ test(
           assert.equal(mine.items[0].id, id);
           assert.equal(mine.items[0].movements.length, 1);
           assert.equal(mine.items[0].movements[0].direction, "incoming");
+        },
+      );
+      await t.test(
+        "task document activity respects both resources and identifies contributors",
+        async () => {
+          const task = await request(oc, "/api/v1/tasks", "POST", {
+            title: "Review document",
+            description: "",
+            priority: "normal",
+            departmentId: finance,
+            assigneeId: owner.id,
+            collaboratorIds: [colleague.id],
+            shareParticipants: true,
+          });
+          assert.equal(task.status, 201);
+          const taskPath = "/api/v1/tasks/" + task.value.id;
+          const resourcePath = "/api/v1/resources/" + task.value.id;
+          assert.equal(
+            (
+              await request(oc, resourcePath + "/links", "POST", {
+                targetId: id,
+                kind: "attachment",
+              })
+            ).status,
+            201,
+          );
+          const timeline = taskDocumentsSchema.parse(
+            (await request(oc, taskPath + "/documents")).value,
+          );
+          assert.equal(timeline.items[0].id, id);
+          assert.equal(timeline.items[0].latestVersion, 1);
+          assert.equal(
+            timeline.activity.find((event) => event.kind === "linked")?.actorName,
+            owner.displayName,
+          );
+          assert.equal(
+            timeline.activity.find((event) => event.kind === "version")?.actorName,
+            owner.displayName,
+          );
+          assert.deepEqual((await request(cc, taskPath + "/documents")).value, {
+            items: [],
+            activity: [],
+          });
+          assert.equal((await request(xc, taskPath + "/documents")).status, 404);
+          assert.equal((await request(cc, taskPath)).value.permissions.comment, true);
+          assert.equal(
+            (
+              await request(cc, resourcePath + "/comments", "POST", {
+                text: "Reviewed",
+                mentions: [],
+              })
+            ).status,
+            201,
+          );
+          const comments = commentsSchema.parse(
+            (await request(oc, resourcePath + "/comments")).value,
+          );
+          assert.equal(comments.items[0].author.displayName, colleague.displayName);
+          assert.deepEqual(comments.items[0].author.departments, ["Finance"]);
+          assert.equal(
+            (
+              await request(oc, resourcePath + "/grants", "POST", {
+                userId: outsider.id,
+                permission: "view",
+              })
+            ).status,
+            201,
+          );
+          assert.equal(
+            (
+              await request(xc, resourcePath + "/comments", "POST", {
+                text: "View only",
+                mentions: [],
+              })
+            ).status,
+            403,
+          );
         },
       );
       await t.test(

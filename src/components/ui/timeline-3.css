@@ -1,0 +1,107 @@
+.timeline-three {
+  width: 100%;
+  min-width: 0;
+  color: var(--color-text-primary);
+}
+.timeline-three-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+.timeline-three-group + .timeline-three-group {
+  margin-top: 1.5rem;
+}
+.timeline-three-list {
+  position: relative;
+  display: grid;
+  gap: 1.5rem;
+  margin-top: 1.25rem;
+  padding: 0;
+  list-style: none;
+}
+.timeline-three-list::before {
+  position: absolute;
+  content: "";
+  left: 1.125rem;
+  top: 1rem;
+  bottom: 1rem;
+  width: 1px;
+  background: var(--color-border-subtle);
+}
+.timeline-three-item {
+  position: relative;
+  display: flex;
+  align-items: flex-start;
+  gap: 0.875rem;
+  min-width: 0;
+}
+.timeline-three-avatar {
+  position: relative;
+  display: block;
+  flex: none;
+  font-size: 0.75rem;
+}
+.timeline-three-icon {
+  position: absolute;
+  right: -3px;
+  bottom: -3px;
+  display: grid;
+  place-items: center;
+  width: 1rem;
+  height: 1rem;
+  border-radius: 50%;
+  border: 1px solid var(--color-border-subtle);
+  background: var(--color-bg-surface);
+  color: var(--color-text-secondary);
+}
+.timeline-three-content {
+  min-width: 0;
+  flex: 1;
+  padding-block: 0.125rem;
+}
+.timeline-three-byline {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 0.5rem 1rem;
+}
+.timeline-three-byline strong {
+  font-size: 0.875rem;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+.timeline-three-byline small {
+  display: block;
+  font-size: 0.75rem;
+  color: var(--color-text-secondary);
+}
+.timeline-three-byline time {
+  font-size: 0.75rem;
+  font-variant-numeric: tabular-nums;
+  color: var(--color-text-secondary);
+}
+.timeline-three-body {
+  margin-top: 0.5rem;
+  font-size: 0.875rem;
+  line-height: 1.8;
+  overflow-wrap: anywhere;
+}
+.timeline-three-body > p {
+  white-space: pre-wrap;
+}
+.timeline-three-body .form-actions {
+  margin-top: 0.5rem;
+  justify-content: flex-start;
+}
+.timeline-three-body .form-actions button {
+  min-height: 44px;
+}
+@media (max-width: 420px) {
+  .timeline-three-byline {
+    flex-direction: column;
+    gap: 0.25rem;
+  }
+}

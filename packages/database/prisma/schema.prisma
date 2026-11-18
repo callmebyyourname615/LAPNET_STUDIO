@@ -119,6 +119,7 @@ model UserProfile {
 }
 
 model Department {
+  taggedTasks TaskTaggedDepartment[]
   id                 String                 @id @default(uuid()) @db.Uuid
   code               String                 @unique
   name               String
@@ -283,6 +284,7 @@ model Resource {
 }
 
 model Task {
+  taggedDepartments TaskTaggedDepartment[]
   id            String             @id @db.Uuid
   number        Int                @unique @default(autoincrement())
   title         String             @db.VarChar(200)
@@ -319,6 +321,17 @@ model TaskCollaborator {
   @@map("task_collaborators")
 }
 
+model TaskTaggedDepartment {
+  taskId String @map("task_id") @db.Uuid
+  departmentId String @map("department_id") @db.Uuid
+  task Task @relation(fields: [taskId], references: [id], onDelete: Restrict)
+  department Department @relation(fields: [departmentId], references: [id], onDelete: Restrict)
+
+  @@id([taskId, departmentId])
+  @@index([departmentId, taskId])
+  @@map("task_tagged_departments")
+}
+
 model TaskRevision {
   id         String   @id @default(uuid()) @db.Uuid
   taskId     String   @map("task_id") @db.Uuid
@@ -336,6 +349,7 @@ model TaskRevision {
 }
 
 model ResourceGrant {
+  source String @default("manual") @db.VarChar(20)
   id           String             @id @default(uuid()) @db.Uuid
   resourceId   String             @map("resource_id") @db.Uuid
   userId       String?            @map("user_id") @db.Uuid

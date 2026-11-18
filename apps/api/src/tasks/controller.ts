@@ -11,6 +11,7 @@ import {
 } from "@nestjs/common";
 import { ApiCookieAuth, ApiTags } from "@nestjs/swagger";
 import type { PortalRequest } from "../http";
+import { BusinessService } from "../business/business.service";
 import {
   CreateTaskInput,
   UpdateTaskInput,
@@ -27,7 +28,10 @@ import { TasksService } from "./tasks.service";
 @ApiTags("Tasks")
 @Controller("tasks")
 export class TasksController {
-  constructor(private readonly tasks: TasksService) {}
+  constructor(
+    private readonly tasks: TasksService,
+    private readonly business: BusinessService,
+  ) {}
   @Get() list(@Req() r: PortalRequest, @Query() q: TaskQuery) {
     return this.tasks.list(r.principal!.user.id, q);
   }
@@ -70,5 +74,8 @@ export class TasksController {
     @Query() q: HistoryQuery,
   ) {
     return this.tasks.revisions(r.principal!.user.id, id, q);
+  }
+  @Get(":id/documents") documents(@Req() r: PortalRequest, @Param("id", ParseUUIDPipe) id: string) {
+    return this.business.taskDocuments(r.principal!.user.id, id);
   }
 }

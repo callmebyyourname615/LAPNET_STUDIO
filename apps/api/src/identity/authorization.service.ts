@@ -84,6 +84,14 @@ export class AuthorizationService {
         { ownerUserId: context.userId },
         { ownerDepartmentId: { in: scope } },
         { grants: { some: { revokedAt: null, permission, OR: subjects } } },
+        ...(permission === "comment"
+          ? [
+              {
+                kind: "task" as const,
+                grants: { some: { revokedAt: null, permission: "edit" as const, OR: subjects } },
+              },
+            ]
+          : []),
       ],
     };
     return {

@@ -1,9 +1,22 @@
-import { Comments } from "../portal/Discussion";
-import { Links } from "../portal/common";
 import "../portal/portal.css";
+import { Comments } from "../portal/Discussion";
 import { Skeleton } from "../../components/ui/skeleton";
 import { useEffect, useState, type FormEvent } from "react";
-import { Plus, ArrowLeft, RefreshCw } from "lucide-react";
+import {
+  Archive,
+  ArrowLeft,
+  ArrowRight,
+  ArrowUpRight,
+  ChevronRight,
+  CircleCheck,
+  FileText,
+  ListChecks,
+  Pencil,
+  Plus,
+  RefreshCw,
+  RotateCcw,
+  type LucideIcon,
+} from "lucide-react";
 import {
   taskPageSchema,
   taskSchema,
@@ -17,8 +30,10 @@ import { apiRequest, ApiError } from "../../lib/api";
 import { errorText } from "../identity/Auth";
 import { useTaskData, statusNames, priorityNames, actionNames, dueLabel, timeLabel } from "./api";
 import { TaskEditor } from "./Editor";
+import { TaskDocuments } from "./TaskDocuments";
 import { TaskSharing } from "./Sharing";
 import { t } from "../../i18n/lo";
+import { formatLaoFullDate, formatLaoTimestamp, vientianeClock } from "../../i18n/lo-date";
 import "./tasks.css";
 
 type Navigation = { go: (path: string) => void };
@@ -64,7 +79,11 @@ export function ConnectedTasks({ id, query, go }: Navigation & { id?: string; qu
           <ArrowLeft size={16} />
           ກັບໄປລາຍການວຽກ
         </button>
-        <TaskEditor sourceInteractionId={new URLSearchParams(query).get("interactionId")??undefined} onCancel={() => go("/tasks")} onSaved={(task) => go("/tasks/" + task.id)} />
+        <TaskEditor
+          sourceInteractionId={new URLSearchParams(query).get("interactionId") ?? undefined}
+          onCancel={() => go("/tasks")}
+          onSaved={(task) => go("/tasks/" + task.id)}
+        />
       </>
     );
   if (id) return <TaskDetail id={id} go={go} />;
@@ -277,6 +296,14 @@ function TaskList({ query, go }: Navigation & { query: string }) {
     </>
   );
 }
+const detailTabs = [
+  { id: "overview", label: "ພາບລວມ" },
+  { id: "activity", label: "ປະຫວັດວຽກ" },
+  { id: "documents", label: "ເອກະສານ" },
+  { id: "comments", label: "ຄວາມຄິດເຫັນ" },
+] as const;
+type DetailTab = (typeof detailTabs)[number]["id"];
+
 function TaskDetail({ id, go }: Navigation & { id: string }) {
   const { data: task, error, loading, reload } = useTaskData("/api/v1/tasks/" + id, taskSchema);
   const [editing, setEditing] = useState(false),
@@ -284,17 +311,25 @@ function TaskDetail({ id, go }: Navigation & { id: string }) {
     [failure, setFailure] = useState(""),
     [status, setStatus] = useState<TaskStatus>("todo"),
     [reason, setReason] = useState(""),
+    [tab, setTab] = useState<DetailTab>("overview"),
+    [statusOpen, setStatusOpen] = useState(false),
+    [documentPicker, setDocumentPicker] = useState(0),
     [archiveConfirm, setArchiveConfirm] = useState(false);
+  function selectTab(next: DetailTab, focus = false) {
+    setTab(next);
+    setDocumentPicker(0);
+    if (focus) document.getElementById(`task-tab-${next}`)?.focus();
+  }
   useEffect(() => {
     if (task) setStatus(task.status);
   }, [task]);
   useEffect(() => {
     const focus = () => {
-      if (!editing) reload();
+      if (!editing && !statusOpen && tab === "overview") reload();
     };
     window.addEventListener("focus", focus);
     return () => window.removeEventListener("focus", focus);
-  }, [reload, editing]);
+  }, [reload, editing, statusOpen, tab]);
   async function transition(e: FormEvent) {
     e.preventDefault();
     if (!task || busy) return;
@@ -307,6 +342,7 @@ function TaskDetail({ id, go }: Navigation & { id: string }) {
         ...(reason.trim() ? { reason: reason.trim() } : {}),
       });
       setReason("");
+      setStatusOpen(false);
       reload();
     } catch (e) {
       setFailure(errorText(e));
@@ -351,28 +387,68 @@ function TaskDetail({ id, go }: Navigation & { id: string }) {
               }}
             />
           ) : (
-            <>
-              <div className="page-header task-page-header">
-                <div>
-                  <div className="eyebrow">
-                    {task.code} · ສະບັບ {task.revision}
+            <article className="task-workspace">
+              <header className="task-workspace-header">
+                <span className="task-workspace-icon">
+                  <ListChecks size={23} aria-hidden="true" />
+                </span>
+                <div className="task-workspace-heading">
+                  <p className="eyebrow">{task.code}</p>
+                  <div className="task-detail-title">
+                    <h1>{task.title}</h1>
+                    <TaskBadge status={task.status} />
                   </div>
-                  <h1>{task.title}</h1>
-                  <p>
-                    ສ້າງໂດຍ {task.owner.displayName} · {timeLabel(task.createdAt)}
-                  </p>
+                  <dl className="task-workspace-meta">
+                    <div>
+                      <dt>Host</dt>
+                      <dd>{task.owner.displayName}</dd>
+                    </div>
+                    <div>
+                      <dt>ຜູ້ຮັບຜິດຊອບ</dt>
+                      <dd>{task.assignee.displayName}</dd>
+                    </div>
+                    <div>
+                      <dt>ຄົບກຳນົດ</dt>
+                      <dd className={task.overdue ? "danger-text" : undefined}>
+                        {dueLabel(task.dueDate)}
+                      </dd>
+                    </div>
+                  </dl>
                 </div>
                 <div className="task-actions">
-                  <button className="button secondary" onClick={reload}>
-                    ໂຫຼດໃໝ່
+                  <button
+                    className="button ghost task-reload"
+                    type="button"
+                    aria-label="ໂຫຼດໃໝ່"
+                    onClick={reload}
+                  >
+                    <RefreshCw size={16} aria-hidden="true" />
                   </button>
                   {task.permissions.edit && (
-                    <button className="button primary" onClick={() => setEditing(true)}>
-                      ແກ້ໄຂວຽກ
-                    </button>
+                    <>
+                      <button
+                        className="button secondary"
+                        type="button"
+                        onClick={() => {
+                          setTab("documents");
+                          setDocumentPicker((count) => count + 1);
+                        }}
+                      >
+                        <FileText size={15} aria-hidden="true" /> ເຊື່ອມເອກະສານ
+                      </button>
+                      <button
+                        className="button primary"
+                        type="button"
+                        aria-expanded={statusOpen}
+                        aria-controls="task-status-form"
+                        onClick={() => setStatusOpen((open) => !open)}
+                      >
+                        <Pencil size={15} aria-hidden="true" /> ອັບເດດສະຖານະ
+                      </button>
+                    </>
                   )}
                 </div>
-              </div>
+              </header>
               {failure && (
                 <p role="alert" className="identity-error">
                   {failure}{" "}
@@ -387,203 +463,380 @@ function TaskDetail({ id, go }: Navigation & { id: string }) {
                   </button>
                 </p>
               )}
-              <div className="detail-grid">
-                <div className="detail-main">
-                  <section className="panel">
-                    <div className="panel-heading">
-                      <h2>ລາຍລະອຽດ</h2>
-                    </div>
-                    <p className="task-description">{task.description || "ບໍ່ມີລາຍລະອຽດ"}</p>
-                  </section>
-                  {task.permissions.edit && (
-                    <section className="panel">
-                      <div className="panel-heading">
-                        <h2>ປ່ຽນສະຖານະ</h2>
-                      </div>
-                      <form className="identity-form" onSubmit={transition}>
-                        <label>
-                          ສະຖານະໃໝ່
-                          <select
-                            aria-label="ສະຖານະໃໝ່"
-                            value={status}
-                            onChange={(e) => setStatus(e.target.value as TaskStatus)}
-                            disabled={busy}
-                          >
-                            {taskStatuses
-                              .filter(
-                                (s) =>
-                                  !["done", "cancelled"].includes(task.status) ||
-                                  s === task.status ||
-                                  s === "todo",
-                              )
-                              .map((s) => (
-                                <option key={s} value={s}>
-                                  {statusNames[s]}
-                                </option>
-                              ))}
-                          </select>
-                        </label>
-                        <label>
-                          ເຫດຜົນ
-                          <input
-                            value={reason}
-                            maxLength={500}
-                            onChange={(e) => setReason(e.target.value)}
-                            disabled={busy}
-                            required={
-                              ["done", "cancelled"].includes(task.status) ||
-                              ["blocked", "cancelled"].includes(status)
-                            }
-                          />
-                        </label>
-                        <p className="task-help">
-                          ຕ້ອງລະບຸເຫດຜົນເມື່ອຕິດຂັດ, ຍົກເລີກ ຫຼື ເປີດວຽກຄືນ. ວຽກທີ່ປິດແລ້ວຈະເປີດຄືນເປັນລໍຖ້າດຳເນີນການ.
-                        </p>
-                        <button
-                          className="button secondary"
-                          type="submit"
-                          disabled={busy || status === task.status}
-                        >
-                          {busy && <Skeleton variant="inline" label="ກຳລັງບັນທຶກ..." />}
-                          {busy ? "ກຳລັງບັນທຶກ..." : "ບັນທຶກສະຖານະ"}
-                        </button>
-                      </form>
-                    </section>
-                  )}
-                  <TaskHistoryPanel key={task.id + ":" + task.revision} id={task.id} />
-                </div>
-                <aside className="detail-side">
-                  <section className="panel">
-                    <div className="panel-heading">
-                      <h2>ຂໍ້ມູນວຽກ</h2>
-                    </div>
-                    <dl className="detail-list">
-                      <dt>ສະຖານະ</dt>
-                      <dd>
-                        <TaskBadge status={task.status} />
-                      </dd>
-                      <dt>ຜູ້ຮັບຜິດຊອບຫຼັກ</dt>
-                      <dd>{task.assignee.displayName}</dd>
-                      <dt>ມອບໝາຍໂດຍ</dt>
-                      <dd>{task.assignedBy.displayName}</dd>
-                      <dt>ຜູ້ຮ່ວມວຽກ</dt>
-                      <dd>{task.collaborators.map((p) => p.displayName).join(", ") || "ບໍ່ມີ"}</dd>
-                      <dt>ພະແນກ</dt>
-                      <dd>{t(task.department.name)}</dd>
-                      <dt>ຄວາມສຳຄັນ</dt>
-                      <dd>{priorityNames[task.priority]}</dd>
-                      <dt>ວັນຄົບກຳນົດ</dt>
-                      <dd className={task.overdue ? "danger-text" : ""}>
-                        {dueLabel(task.dueDate)}
-                        {task.overdue ? " · ເກີນກຳນົດ" : ""}
-                      </dd>
-                      <dt>ແກ້ໄຂຫຼ້າສຸດ</dt>
-                      <dd>{timeLabel(task.updatedAt)}</dd>
-                    </dl>
-                  </section>
-                  {task.permissions.manageAccess && <TaskSharing id={id} onChanged={reload} />}
-                  {task.permissions.manageAccess && (
-                    <section className="panel">
-                      <h2>ເກັບເຂົ້າຄັງ</h2>
-                      <p className="task-help">ເອົາວຽກອອກຈາກລາຍການໃຊ້ງານ ໂດຍເກັບຂໍ້ມູນ ແລະ ປະຫວັດໄວ້.</p>
-                      {archiveConfirm ? (
-                        <div className="task-actions">
-                          <button
-                            className="button danger"
-                            disabled={busy}
-                            onClick={() => void archive()}
-                          >
-                            ຢືນຢັນເກັບເຂົ້າຄັງ
-                          </button>
-                          <button
-                            className="button ghost"
-                            disabled={busy}
-                            onClick={() => setArchiveConfirm(false)}
-                          >
-                            ຍົກເລີກ
-                          </button>
-                        </div>
-                      ) : (
-                        <button className="button ghost" onClick={() => setArchiveConfirm(true)}>
-                          ເກັບວຽກເຂົ້າຄັງ
-                        </button>
-                      )}
-                    </section>
-                  )}
-                </aside>
+              {task.permissions.edit && statusOpen && (
+                <section className="task-status-editor">
+                  <form id="task-status-form" className="identity-form" onSubmit={transition}>
+                    <label>
+                      ສະຖານະໃໝ່
+                      <select
+                        aria-label="ສະຖານະໃໝ່"
+                        value={status}
+                        onChange={(e) => setStatus(e.target.value as TaskStatus)}
+                        disabled={busy}
+                      >
+                        {taskStatuses
+                          .filter(
+                            (s) =>
+                              !["done", "cancelled"].includes(task.status) ||
+                              s === task.status ||
+                              s === "todo",
+                          )
+                          .map((s) => (
+                            <option key={s} value={s}>
+                              {statusNames[s]}
+                            </option>
+                          ))}
+                      </select>
+                    </label>
+                    <label>
+                      ບັນທຶກຄວາມຄືບໜ້າ
+                      <input
+                        value={reason}
+                        maxLength={500}
+                        onChange={(e) => setReason(e.target.value)}
+                        disabled={busy}
+                        required={
+                          ["done", "cancelled"].includes(task.status) ||
+                          ["blocked", "cancelled"].includes(status)
+                        }
+                      />
+                    </label>
+                    <p className="task-help">
+                      ຕ້ອງລະບຸເຫດຜົນເມື່ອຕິດຂັດ, ຍົກເລີກ ຫຼື ເປີດວຽກຄືນ. ວຽກທີ່ປິດແລ້ວຈະເປີດຄືນເປັນລໍຖ້າດຳເນີນການ.
+                    </p>
+                    <button
+                      className="button secondary"
+                      type="submit"
+                      disabled={busy || status === task.status}
+                    >
+                      {busy && <Skeleton variant="inline" label="ກຳລັງບັນທຶກ..." />}
+                      ບັນທຶກສະຖານະ
+                    </button>
+                  </form>
+                </section>
+              )}
+              <div className="task-workspace-tabs" role="tablist" aria-label="ຂໍ້ມູນວຽກ">
+                {detailTabs.map(({ id: option, label }, index) => (
+                  <button
+                    key={option}
+                    id={`task-tab-${option}`}
+                    type="button"
+                    role="tab"
+                    tabIndex={tab === option ? 0 : -1}
+                    aria-selected={tab === option}
+                    aria-controls={`task-tabpanel-${option}`}
+                    onClick={() => selectTab(option)}
+                    onKeyDown={(event) => {
+                      const keys: Record<string, number> = {
+                        ArrowLeft: (index + detailTabs.length - 1) % detailTabs.length,
+                        ArrowRight: (index + 1) % detailTabs.length,
+                        Home: 0,
+                        End: detailTabs.length - 1,
+                      };
+                      const next = keys[event.key];
+                      if (next === undefined) return;
+                      event.preventDefault();
+                      selectTab(detailTabs[next].id, true);
+                    }}
+                  >
+                    {label}
+                  </button>
+                ))}
               </div>
-            </>
+              {detailTabs.map(({ id: panel }) => (
+                <div
+                  className="task-workspace-content"
+                  role="tabpanel"
+                  key={panel}
+                  id={`task-tabpanel-${panel}`}
+                  aria-labelledby={`task-tab-${panel}`}
+                  hidden={tab !== panel}
+                  tabIndex={tab === panel ? 0 : undefined}
+                >
+                  {tab === panel && panel === "overview" && (
+                    <>
+                      <section className="task-workspace-section">
+                        <div className="task-section-heading">
+                          <h2>ທີມຮ່ວມວຽກ</h2>
+                          {task.permissions.manageTeam && (
+                            <button className="button secondary" onClick={() => setEditing(true)}>
+                              ຈັດການທີມ
+                            </button>
+                          )}
+                        </div>
+                        <div className="portal-tags">
+                          <span className="portal-tag">Host · {task.owner.displayName}</span>
+                          <span className="portal-tag">ຮັບຜິດຊອບ · {task.assignee.displayName}</span>
+                          {task.collaborators
+                            .filter((person) => person.id !== task.owner.id)
+                            .map((person) => (
+                              <span className="portal-tag" key={person.id}>
+                                {person.displayName}
+                              </span>
+                            ))}
+                          {task.taggedDepartments.map((department) => (
+                            <span className="portal-tag" key={department.id}>
+                              @{t(department.name)}
+                            </span>
+                          ))}
+                        </div>
+                        <p className="task-help">
+                          ທຸກຄົນໃນທີມຮ່ວມອັບເດດສະຖານະ ແລະ ຂຽນຄວາມຄືບໜ້າໃນວຽກດຽວກັນ.
+                        </p>
+                      </section>
+                      <TaskDocuments
+                        id={id}
+                        edit={false}
+                        go={go}
+                        preview
+                        onOpen={() => selectTab("documents", true)}
+                      />
+                      <TaskHistoryPanel id={id} onOpen={() => selectTab("activity", true)} />
+                      <Comments
+                        id={id}
+                        canComment={false}
+                        taskStyle
+                        onOpen={() => selectTab("comments", true)}
+                      />
+                      <details className="task-workspace-settings">
+                        <summary>
+                          ຂໍ້ມູນວຽກ{" "}
+                          <ChevronRight
+                            className="task-disclosure-icon"
+                            size={16}
+                            aria-hidden="true"
+                          />
+                        </summary>
+                        <div className="task-workspace-settings-content">
+                          <section className="panel">
+                            <div className="panel-heading">
+                              <h2>ລາຍລະອຽດວຽກ</h2>
+                              {task.permissions.edit && (
+                                <button
+                                  className="button secondary"
+                                  type="button"
+                                  onClick={() => setEditing(true)}
+                                >
+                                  ແກ້ໄຂວຽກ
+                                </button>
+                              )}
+                            </div>
+                            <dl className="detail-list">
+                              <dt>ຜູ້ຮັບຜິດຊອບຫຼັກ</dt>
+                              <dd>{task.assignee.displayName}</dd>
+                              <dt>ມອບໝາຍໂດຍ</dt>
+                              <dd>{task.assignedBy.displayName}</dd>
+                              <dt>ຜູ້ຮ່ວມວຽກ</dt>
+                              <dd>
+                                {task.collaborators.map((p) => p.displayName).join(", ") || "ບໍ່ມີ"}
+                              </dd>
+                              <dt>ພະແນກ</dt>
+                              <dd>{t(task.department.name)}</dd>
+                              <dt>ຄວາມສຳຄັນ</dt>
+                              <dd>{priorityNames[task.priority]}</dd>
+                              <dt>ວັນຄົບກຳນົດ</dt>
+                              <dd className={task.overdue ? "danger-text" : ""}>
+                                {dueLabel(task.dueDate)}
+                                {task.overdue ? " · ເກີນກຳນົດ" : ""}
+                              </dd>
+                              <dt>ແກ້ໄຂຫຼ້າສຸດ</dt>
+                              <dd>{formatLaoTimestamp(task.updatedAt)}</dd>
+                            </dl>
+                            <div className="task-detail-description">
+                              <h3>ລາຍລະອຽດ</h3>
+                              <p className="task-description">{task.description || "ບໍ່ມີລາຍລະອຽດ"}</p>
+                            </div>
+                          </section>
+                          {task.permissions.manageAccess && (
+                            <TaskSharing id={id} onChanged={reload} />
+                          )}
+                          {task.permissions.manageAccess && (
+                            <section className="panel">
+                              <h2>ເກັບເຂົ້າຄັງ</h2>
+                              <p className="task-help">
+                                ເອົາວຽກອອກຈາກລາຍການໃຊ້ງານ ໂດຍເກັບຂໍ້ມູນ ແລະ ປະຫວັດໄວ້.
+                              </p>
+                              {archiveConfirm ? (
+                                <div className="task-actions">
+                                  <button
+                                    className="button danger"
+                                    disabled={busy}
+                                    onClick={() => void archive()}
+                                  >
+                                    ຢືນຢັນເກັບເຂົ້າຄັງ
+                                  </button>
+                                  <button
+                                    className="button ghost"
+                                    disabled={busy}
+                                    onClick={() => setArchiveConfirm(false)}
+                                  >
+                                    ຍົກເລີກ
+                                  </button>
+                                </div>
+                              ) : (
+                                <button
+                                  className="button ghost"
+                                  onClick={() => setArchiveConfirm(true)}
+                                >
+                                  ເກັບວຽກເຂົ້າຄັງ
+                                </button>
+                              )}
+                            </section>
+                          )}
+                        </div>
+                      </details>
+                    </>
+                  )}
+                  {tab === panel && panel === "activity" && <TaskHistoryPanel id={id} />}
+                  {tab === panel && panel === "documents" && (
+                    <TaskDocuments
+                      key={documentPicker}
+                      id={id}
+                      edit={task.permissions.edit}
+                      go={go}
+                      startAdding={documentPicker > 0}
+                    />
+                  )}
+                  {tab === panel && panel === "comments" && (
+                    <Comments
+                      id={id}
+                      canComment={task.permissions.comment}
+                      canInvite={task.permissions.manageTeam}
+                      onChanged={reload}
+                      taskStyle
+                    />
+                  )}
+                </div>
+              ))}
+            </article>
           )}
         </>
       )}
     </>
   );
 }
-function TaskHistoryPanel({ id }: { id: string }) {
+const historyIcons: Record<string, LucideIcon> = {
+  created: Plus,
+  updated: Pencil,
+  transitioned: ArrowRight,
+  reopened: RotateCcw,
+  archived: Archive,
+};
+
+function TaskHistoryPanel({ id, onOpen }: { id: string; onOpen?: () => void }) {
   const [cursors, setCursors] = useState<number[]>([]);
   const { data, error, loading, reload } = useTaskData(
-    `/api/v1/tasks/${id}/history?limit=10${cursors.length ? "&before=" + cursors.at(-1) : ""}`,
+    `/api/v1/tasks/${id}/history?limit=${onOpen ? 3 : 10}${cursors.length ? "&before=" + cursors.at(-1) : ""}`,
     taskHistorySchema,
   );
+  const events =
+    data?.items.map((event) => {
+      const timestamp = new Date(event.occurredAt);
+      return { event, day: formatLaoFullDate(timestamp), time: vientianeClock.format(timestamp) };
+    }) ?? [];
   return (
-    <section className="panel">
-      <div className="panel-heading">
-        <h2>ປະຫວັດການປ່ຽນແປງ</h2>
+    <section className="task-workspace-section task-activity" aria-labelledby="task-activity-title">
+      <div className="task-section-heading">
+        <h2 id="task-activity-title">{onOpen ? "ອັບເດດວຽກຫຼ້າສຸດ" : "ປະຫວັດວຽກ"}</h2>
+        {onOpen && (
+          <button className="text-button" type="button" onClick={onOpen}>
+            ເບິ່ງທັງໝົດ <ArrowUpRight size={14} aria-hidden="true" />
+          </button>
+        )}
       </div>
       <Feedback loading={loading} error={error} reload={reload} />
       {data && (
         <>
-          <div className="task-history">
-            {data.items.map((event) => (
-              <article key={event.id}>
-                <p>
-                  <strong>{actionNames[event.action] ?? event.action}</strong> ·{" "}
-                  {event.actor.displayName}
-                </p>
-                <small>
-                  {timeLabel(event.occurredAt)} · ສະບັບ {event.revision}
-                </small>
-                {event.reason && <p className="task-description">{event.reason}</p>}
-                <details>
-                  <summary>ເບິ່ງຂໍ້ມູນໃນສະບັບນີ້</summary>
-                  <dl className="detail-list">
-                    <dt>ຫົວຂໍ້</dt>
-                    <dd>{event.snapshot.title}</dd>
-                    <dt>ລາຍລະອຽດ</dt>
-                    <dd className="task-description">{event.snapshot.description || "—"}</dd>
-                    <dt>ສະຖານະ</dt>
-                    <dd>{statusNames[event.snapshot.status]}</dd>
-                    <dt>ຜູ້ຮັບຜິດຊອບ</dt>
-                    <dd>{event.snapshot.assignee.displayName}</dd>
-                    <dt>ຜູ້ຮ່ວມວຽກ</dt>
-                    <dd>
-                      {event.snapshot.collaborators.map((p) => p.displayName).join(", ") || "—"}
-                    </dd>
-                    <dt>ຄວາມສຳຄັນ</dt>
-                    <dd>{priorityNames[event.snapshot.priority]}</dd>
-                    <dt>ຄົບກຳນົດ</dt>
-                    <dd>{dueLabel(event.snapshot.dueDate)}</dd>
-                  </dl>
-                </details>
-              </article>
-            ))}
-          </div>
-          <div className="task-pagination">
-            <button
-              className="button secondary"
-              disabled={!cursors.length}
-              onClick={() => setCursors((old) => old.slice(0, -1))}
-            >
-              ໃໝ່ກວ່າ
-            </button>
-            <button
-              className="button secondary"
-              disabled={!data.nextBefore}
-              onClick={() => setCursors((old) => [...old, data.nextBefore!])}
-            >
-              ເກົ່າກວ່າ
-            </button>
-          </div>
+          {events.length ? (
+            <ol className="task-workspace-rows task-history">
+              {events.map(({ event, day, time }, index) => {
+                const closesTask =
+                  event.action === "transitioned" && event.snapshot.status === "done";
+                const Icon = closesTask ? CircleCheck : (historyIcons[event.action] ?? Pencil);
+                const statusChange = event.action === "transitioned" || event.action === "reopened";
+                const previousStatus = events[index + 1]?.event.snapshot.status;
+                return (
+                  <li className="task-history-item" key={event.id}>
+                    {!onOpen && day !== events[index - 1]?.day && (
+                      <p className="task-history-date">{day}</p>
+                    )}
+                    <div className="task-history-card" data-tone={closesTask ? "done" : "task"}>
+                      <details>
+                        <summary className="task-event-row">
+                          <span className="task-row-icon">
+                            <Icon size={17} aria-hidden="true" />
+                          </span>
+                          <span className="task-row-content">
+                            <strong>{actionNames[event.action] ?? event.action}</strong>
+                            <span>
+                              {event.actor.displayName}
+                              {statusChange &&
+                                ` · ${previousStatus ? statusNames[previousStatus] + " → " : ""}${statusNames[event.snapshot.status]}`}
+                            </span>
+                          </span>
+                          <time dateTime={event.occurredAt}>
+                            {onOpen ? `${day} · ${time}` : time}
+                          </time>
+                          <ChevronRight
+                            className="task-disclosure-icon"
+                            size={16}
+                            aria-hidden="true"
+                          />
+                        </summary>
+                        <div className="task-history-snapshot">
+                          <p>ສະບັບ {event.revision}</p>
+                          <dl className="detail-list">
+                            <dt>ຫົວຂໍ້</dt>
+                            <dd>{event.snapshot.title}</dd>
+                            <dt>ລາຍລະອຽດ</dt>
+                            <dd className="task-description">
+                              {event.snapshot.description || "—"}
+                            </dd>
+                            <dt>ສະຖານະ</dt>
+                            <dd>{statusNames[event.snapshot.status]}</dd>
+                            <dt>ຜູ້ຮັບຜິດຊອບ</dt>
+                            <dd>{event.snapshot.assignee.displayName}</dd>
+                            <dt>ຜູ້ຮ່ວມວຽກ</dt>
+                            <dd>
+                              {event.snapshot.collaborators.map((p) => p.displayName).join(", ") ||
+                                "—"}
+                            </dd>
+                            <dt>ຄວາມສຳຄັນ</dt>
+                            <dd>{priorityNames[event.snapshot.priority]}</dd>
+                            <dt>ຄົບກຳນົດ</dt>
+                            <dd>{dueLabel(event.snapshot.dueDate)}</dd>
+                          </dl>
+                        </div>
+                      </details>
+                      {event.reason && (
+                        <p className="task-description task-history-note">{event.reason}</p>
+                      )}
+                    </div>
+                  </li>
+                );
+              })}
+            </ol>
+          ) : (
+            <p className="task-history-empty">ຍັງບໍ່ມີປະຫວັດວຽກ</p>
+          )}
+          {!onOpen && (cursors.length > 0 || data.nextBefore !== null) && (
+            <div className="task-pagination">
+              <button
+                className="button secondary"
+                disabled={!cursors.length}
+                onClick={() => setCursors((old) => old.slice(0, -1))}
+              >
+                ໃໝ່ກວ່າ
+              </button>
+              <button
+                className="button secondary"
+                disabled={!data.nextBefore}
+                onClick={() => setCursors((old) => [...old, data.nextBefore!])}
+              >
+                ເກົ່າກວ່າ
+              </button>
+            </div>
+          )}
         </>
       )}
     </section>

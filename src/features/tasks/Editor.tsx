@@ -21,7 +21,7 @@ export function TaskEditor({
   sourceInteractionId,
 }: {
   task?: TaskRecord;
-  sourceInteractionId?:string;
+  sourceInteractionId?: string;
   onSaved: (task: TaskRecord) => void;
   onCancel: () => void;
 }) {
@@ -36,8 +36,10 @@ export function TaskEditor({
   );
   const [assigneeId, setAssignee] = useState(task?.assignee.id ?? self.id),
     [collaboratorIds, setCollaborators] = useState(task?.collaborators.map((p) => p.id) ?? []);
-  const [share, setShare] = useState(false),
-    [search, setSearch] = useState(""),
+  const [taggedDepartmentIds, setTaggedDepartments] = useState(
+    task?.taggedDepartments.map((d) => d.id) ?? [],
+  );
+  const [search, setSearch] = useState(""),
     [options, setOptions] = useState<TaskOptions | null>(null),
     [people, setPeople] = useState<Person[]>([
       ...new Map(
@@ -52,7 +54,7 @@ export function TaskEditor({
     [busy, setBusy] = useState(false),
     [loading, setLoading] = useState(true),
     [conflict, setConflict] = useState(false);
-  const canShare = !task || task.permissions.manageAccess;
+  const canShare = !task || task.permissions.manageTeam;
   useEffect(() => {
     const controller = new AbortController();
     setLoading(true);
@@ -93,10 +95,6 @@ export function TaskEditor({
     e.preventDefault();
     if (busy || conflict) return;
     setError("");
-    if (!task && !share && [assigneeId, ...collaboratorIds].some((id) => id !== self.id)) {
-      setError("ກະລຸນາຢືນຢັນການແບ່ງປັນສິດໃຫ້ຜູ້ຮ່ວມວຽກທີ່ເລືອກ.");
-      return;
-    }
     setBusy(true);
     const fields: TaskWrite = {
       title: title.trim(),
@@ -105,11 +103,15 @@ export function TaskEditor({
       dueDate: dueDate || null,
       assigneeId,
       collaboratorIds,
-      shareParticipants: share,
+      taggedDepartmentIds,
     };
     try {
       const value = await apiRequest(
-        task ? "/api/v1/tasks/" + task.id : sourceInteractionId ? `/api/v1/interactions/${sourceInteractionId}/follow-up-tasks` : "/api/v1/tasks",
+        task
+          ? "/api/v1/tasks/" + task.id
+          : sourceInteractionId
+            ? `/api/v1/interactions/${sourceInteractionId}/follow-up-tasks`
+            : "/api/v1/tasks",
         task ? "PATCH" : "POST",
         { ...fields, ...(task ? { revision: task.revision } : { departmentId }) },
       );
@@ -140,6 +142,10 @@ export function TaskEditor({
     <section className="panel task-editor">
       <div className="panel-heading">
         <h2>{task ? "ແກ້ໄຂວຽກ" : "ສ້າງວຽກໃໝ່"}</h2>
+        <p className="task-help">
+          Host: {task?.owner.displayName ?? self.displayName} · ເລືອກຄົນ ຫຼື ພະແນກເຂົ້າທີມ
+          ແລ້ວຮ່ວມອັບເດດໃນວຽກນີ້ໄດ້ເລີຍ.
+        </p>
       </div>
       <form onSubmit={submit} className="identity-form" aria-busy={busy}>
         <label>
@@ -243,7 +249,7 @@ export function TaskEditor({
               setAssignee(value);
               setCollaborators((ids) => ids.filter((id) => id !== value));
             }}
-            disabled={busy}
+            disabled={busy || !canShare}
             required
           >
             {people.map((p) => (
@@ -263,7 +269,7 @@ export function TaskEditor({
                 <input
                   type="checkbox"
                   checked={collaboratorIds.includes(p.id)}
-                  disabled={busy || p.status === "disabled"}
+                  disabled={busy || !canShare || p.status === "disabled"}
                   onChange={(e) => {
                     const checked = e.currentTarget.checked;
                     setCollaborators((ids) =>
@@ -276,19 +282,44 @@ export function TaskEditor({
             ))}
           {!displayed.some((p) => p.id !== assigneeId) && <p>ຄົ້ນຫາຜູ້ໃຊ້ເພື່ອເພີ່ມຜູ້ຮ່ວມວຽກ.</p>}
         </fieldset>
-        {canShare && (
-          <label className="task-participant-check">
-            <input
-              type="checkbox"
-              checked={share}
-              onChange={(e) => setShare(e.target.checked)}
-              disabled={busy}
-            />
-            ແບ່ງປັນສິດເບິ່ງ ແລະ ແກ້ໄຂໃຫ້ຜູ້ຮັບຜິດຊອບ/ຜູ້ຮ່ວມວຽກທີ່ເລືອກ
-          </label>
-        )}
+        <fieldset className="task-choices">
+          <legend>@tag ພະແນກເຂົ້າທີມ</legend>
+          {[
+            ...new Map(
+              [...(options?.taggableDepartments ?? []), ...(task?.taggedDepartments ?? [])].map(
+                (department) => [department.id, department],
+              ),
+            ).values(),
+          ].map((department) => (
+            <label key={department.id}>
+              <input
+                type="checkbox"
+                name="taggedDepartmentIds"
+                value={department.id}
+                checked={taggedDepartmentIds.includes(department.id)}
+                disabled={
+                  busy ||
+                  !canShare ||
+                  ("active" in department &&
+                    !department.active &&
+                    !taggedDepartmentIds.includes(department.id))
+                }
+                onChange={(event) =>
+                  setTaggedDepartments((current) =>
+                    event.target.checked
+                      ? [...current, department.id]
+                      : current.filter((id) => id !== department.id),
+                  )
+                }
+              />
+              {t(department.name)}
+            </label>
+          ))}
+        </fieldset>
         <p className="task-help">
-          ການເລືອກຄົນບໍ່ໄດ້ປ່ຽນສິດເອງ. ຖ້າບໍ່ແບ່ງປັນເພີ່ມ ຜູ້ທີ່ເລືອກຕ້ອງມີສິດເບິ່ງແລ້ວ. ການເອົາຄົນອອກຈາກວຽກບໍ່ໄດ້ຖອນສິດທີ່ເຄີຍແບ່ງປັນ.
+          {canShare
+            ? "ຄົນ ແລະ ສະມາຊິກພະແນກທີ່ເລືອກຈະເບິ່ງ, ປ່ຽນສະຖານະ ແລະ ຂຽນຄວາມຄືບໜ້າໄດ້ອັດຕະໂນມັດ. Host ເປັນຜູ້ຈັດການທີມ."
+            : "Host ເປັນຜູ້ຈັດການຜູ້ຮັບຜິດຊອບ ແລະ ທີມ. ທ່ານອັບເດດລາຍລະອຽດ ແລະ ສະຖານະວຽກໄດ້."}
         </p>
         {!task && options && !options.departments.length && (
           <p role="alert">ບັນຊີນີ້ຍັງບໍ່ມີພະແນກສຳລັບສ້າງວຽກ. ກະລຸນາໃຫ້ຜູ້ດູແລກຳນົດສະມາຊິກພະແນກກ່ອນ.</p>

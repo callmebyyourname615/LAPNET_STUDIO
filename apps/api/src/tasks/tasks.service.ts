@@ -1,4 +1,5 @@
 import { enqueueNotification } from "../business/events";
+import { syncTaskTeam, taskTeamRecipients, teamInclude } from "./team";
 import {
   BadRequestException,
   ConflictException,
@@ -11,7 +12,6 @@ import { DatabaseService } from "../database.service";
 import { AuthorizationService, type Transaction } from "../identity/authorization.service";
 import {
   CreateTaskInput,
-  TaskFields,
   UpdateTaskInput,
   TransitionInput,
   TaskQuery,
@@ -22,6 +22,7 @@ import {
 
 const person = { id: true, displayName: true, status: true } as const;
 const include = {
+  ...teamInclude,
   resource: {
     include: {
       owner: { select: person },
@@ -122,9 +123,14 @@ export class TasksService {
       orderBy: { id: "asc" },
       take: Math.min(q.limit, 25),
     });
-    return { departments, users };
+    const taggableDepartments = await this.database.client.department.findMany({
+      where: { active: true },
+      select: { id: true, code: true, name: true },
+      orderBy: { code: "asc" },
+    });
+    return { departments, users, taggableDepartments };
   }
-  private map(row: Row, editable: Set<string>, manageable: Set<string>) {
+  private map(row: Row, editable: Set<string>, manageable: Set<string>, actorId: string) {
     const dueDate = row.dueDate?.toISOString().slice(0, 10) ?? null;
     return {
       id: row.id,
@@ -143,7 +149,13 @@ export class TasksService {
       assignee: row.assignee,
       assignedBy: row.assignedBy,
       collaborators: row.collaborators.map((x) => x.user),
-      permissions: { view: true, edit: editable.has(row.id), manageAccess: manageable.has(row.id) },
+      taggedDepartments: row.taggedDepartments.map((x) => x.department),
+      permissions: {
+        view: true,
+        edit: editable.has(row.id),
+        manageAccess: manageable.has(row.id),
+        manageTeam: row.resource.ownerUserId === actorId,
+      },
     };
   }
   private async mapRows(rows: Row[], context: Context, db: Transaction = this.database.client) {
@@ -158,7 +170,17 @@ export class TasksService {
     });
     const editIds = new Set(editable.map((x) => x.id)),
       manageIds = new Set(manageable.map((x) => x.id));
-    return rows.map((row) => this.map(row, editIds, manageIds));
+    return rows.map((row) => this.map(row, editIds, manageIds, context.userId));
+  }
+  private mine(context: Context): Prisma.TaskWhereInput {
+    return {
+      OR: [
+        { resource: { ownerUserId: context.userId } },
+        { assigneeId: context.userId },
+        { collaborators: { some: { userId: context.userId } } },
+        { taggedDepartments: { some: { departmentId: { in: context.departments } } } },
+      ],
+    };
   }
   async list(actor: string, q: TaskQuery) {
     const context = await this.authorization.context(actor),
@@ -196,13 +218,18 @@ export class TasksService {
               },
             ]
           : []),
-        ...(q.view === "mine"
-          ? [{ OR: [{ assigneeId: actor }, { collaborators: { some: { userId: actor } } }] }]
-          : []),
+        ...(q.view === "mine" ? [this.mine(context)] : []),
         ...(q.view === "created" ? [{ resource: { ownerUserId: actor } }] : []),
         ...(q.view === "assigned" ? [{ assignedById: actor }] : []),
         ...(q.view === "team"
-          ? [{ resource: { ownerDepartmentId: { in: context.departments } } }]
+          ? [
+              {
+                OR: [
+                  { resource: { ownerDepartmentId: { in: context.departments } } },
+                  { taggedDepartments: { some: { departmentId: { in: context.departments } } } },
+                ],
+              },
+            ]
           : []),
         ...(q.due
           ? [
@@ -253,9 +280,7 @@ export class TasksService {
         const context = await this.authorization.context(actor, tx);
         const where: Prisma.TaskWhereInput = {
           resource: { AND: [{ kind: "task" }, this.authorization.where(context)] },
-          ...(q.view === "mine"
-            ? { OR: [{ assigneeId: actor }, { collaborators: { some: { userId: actor } } }] }
-            : {}),
+          ...(q.view === "mine" ? this.mine(context) : {}),
         };
         const today = businessDate(),
           start = new Date(today + "T00:00:00.000Z");
@@ -358,45 +383,14 @@ export class TasksService {
     return this.database.client.$transaction(async (tx) => {
       await this.authorization.requireResource(actor, id, "view", tx);
       const row = await tx.task.findUniqueOrThrow({ where: { id }, include });
-      return (await this.mapRows([row], await this.authorization.context(actor, tx), tx))[0];
+      const context = await this.authorization.context(actor, tx);
+      const [task] = await this.mapRows([row], context, tx);
+      const comment = await tx.resource.findFirst({
+        where: { id, AND: [this.authorization.where(context, "comment")] },
+        select: { id: true },
+      });
+      return { ...task, permissions: { ...task.permissions, comment: !!comment } };
     });
-  }
-  private async participants(
-    tx: Transaction,
-    actor: string,
-    id: string,
-    input: TaskFields,
-    mayShare: boolean,
-  ) {
-    if (input.collaboratorIds.includes(input.assigneeId)) throw new BadRequestException();
-    const ids = [...new Set([input.assigneeId, ...input.collaboratorIds])];
-    const users = await tx.user.findMany({
-      where: { id: { in: ids }, status: "active", username: { not: null } },
-      select: { id: true },
-    });
-    if (users.length !== ids.length) throw new BadRequestException();
-    if (input.shareParticipants && !mayShare) throw new ForbiddenException();
-    for (const userId of ids) {
-      if (input.shareParticipants && userId !== actor) {
-        for (const permission of ["view", "edit"] as const) {
-          const exists = await tx.resourceGrant.findFirst({
-            where: { resourceId: id, userId, permission, revokedAt: null },
-          });
-          if (!exists)
-            await tx.resourceGrant.create({
-              data: { resourceId: id, userId, permission, grantedById: actor },
-            });
-        }
-      }
-      const context = await this.authorization.context(userId, tx);
-      if (
-        !(await tx.resource.findFirst({
-          where: { id, AND: [this.authorization.where(context)] },
-          select: { id: true },
-        }))
-      )
-        throw new BadRequestException();
-    }
   }
   private async history(
     tx: Transaction,
@@ -414,6 +408,7 @@ export class TasksService {
       dueDate: row.dueDate?.toISOString().slice(0, 10) ?? null,
       assignee: row.assignee,
       collaborators: row.collaborators.map((x) => x.user),
+      taggedDepartments: row.taggedDepartments.map((x) => x.department),
       archived: !!row.resource.archivedAt,
     };
     await tx.taskRevision.create({
@@ -422,7 +417,7 @@ export class TasksService {
     await enqueueNotification(
       tx,
       row.id,
-      [row.resource.ownerUserId, row.assigneeId, ...row.collaborators.map((x) => x.user.id)],
+      await taskTeamRecipients(tx, row),
       action === "created" || action === "updated" ? "assignment" : "status",
       `task:${row.id}:${row.revision}`,
       actor,
@@ -442,7 +437,7 @@ export class TasksService {
         await tx.resource.create({
           data: { id, kind: "task", ownerUserId: actor, ownerDepartmentId: input.departmentId },
         });
-        await this.participants(tx, actor, id, input, true);
+        await syncTaskTeam(tx, actor, id, input);
         const row = await tx.task.create({
           data: {
             id,
@@ -453,14 +448,17 @@ export class TasksService {
             assigneeId: input.assigneeId,
             assignedById: actor,
             collaborators: { create: input.collaboratorIds.map((userId) => ({ userId })) },
+            taggedDepartments: {
+              create: (input.taggedDepartmentIds ?? []).map((departmentId) => ({ departmentId })),
+            },
           },
           include,
         });
         await this.history(tx, row, actor, "created", requestId);
-        if (input.shareParticipants)
-          await this.authorization.audit(tx, actor, "task.participants_shared", id, requestId, {
-            userIds: [input.assigneeId, ...input.collaboratorIds],
-          });
+        await this.authorization.audit(tx, actor, "task.participants_shared", id, requestId, {
+          userIds: [input.assigneeId, ...input.collaboratorIds],
+          departmentIds: input.taggedDepartmentIds ?? [],
+        });
       },
       { timeout: 15000 },
     );
@@ -484,12 +482,22 @@ export class TasksService {
     await this.database.client.$transaction(
       async (tx) => {
         const previous = await this.locked(tx, actor, id, input.revision);
-        const context = await this.authorization.context(actor, tx);
-        const mayShare = !!(await tx.resource.findFirst({
-          where: { id, AND: [this.authorization.where(context, "manage_access")] },
-          select: { id: true },
-        }));
-        await this.participants(tx, actor, id, input, mayShare);
+        input.taggedDepartmentIds ??= previous.taggedDepartments.map((x) => x.departmentId);
+        const same = (a: string[], b: string[]) => [...a].sort().join() === [...b].sort().join();
+        const changed =
+          previous.assigneeId !== input.assigneeId ||
+          !same(
+            previous.collaborators.map((x) => x.userId),
+            input.collaboratorIds,
+          ) ||
+          !same(
+            previous.taggedDepartments.map((x) => x.departmentId),
+            input.taggedDepartmentIds,
+          );
+        if (previous.resource.ownerUserId !== actor && changed) throw new ForbiddenException();
+        if (previous.resource.ownerUserId === actor && changed)
+          await syncTaskTeam(tx, actor, id, input);
+        await tx.taskTaggedDepartment.deleteMany({ where: { taskId: id } });
         await tx.taskCollaborator.deleteMany({ where: { taskId: id } });
         const row = await tx.task.update({
           where: { id },
@@ -502,18 +510,70 @@ export class TasksService {
             assignedById: previous.assigneeId === input.assigneeId ? previous.assignedById : actor,
             revision: { increment: 1 },
             collaborators: { create: input.collaboratorIds.map((userId) => ({ userId })) },
+            taggedDepartments: {
+              create: input.taggedDepartmentIds.map((departmentId) => ({ departmentId })),
+            },
           },
           include,
         });
         await this.history(tx, row, actor, "updated", requestId);
-        if (input.shareParticipants)
+        if (previous.resource.ownerUserId === actor && changed)
           await this.authorization.audit(tx, actor, "task.participants_shared", id, requestId, {
             userIds: [input.assigneeId, ...input.collaboratorIds],
+            departmentIds: input.taggedDepartmentIds ?? [],
           });
       },
       { timeout: 15000 },
     );
     return this.detail(actor, id);
+  }
+  async inviteFromMentions(
+    tx: Transaction,
+    actor: string,
+    id: string,
+    targets: { type: string; id: string }[],
+    requestId: string,
+  ) {
+    await tx.$queryRaw`SELECT id FROM resources WHERE id=${id}::uuid FOR UPDATE`;
+    await this.authorization.requireResource(actor, id, "comment", tx);
+    const row = await tx.task.findUniqueOrThrow({ where: { id }, include });
+    if (row.resource.ownerUserId !== actor) return;
+    const users = [
+      ...new Set([
+        ...row.collaborators.map((x) => x.userId),
+        ...targets.filter((x) => x.type === "user" && x.id !== row.assigneeId).map((x) => x.id),
+      ]),
+    ];
+    const departments = [
+      ...new Set([
+        ...row.taggedDepartments.map((x) => x.departmentId),
+        ...targets.filter((x) => x.type === "department").map((x) => x.id),
+      ]),
+    ];
+    if (
+      users.length === row.collaborators.length &&
+      departments.length === row.taggedDepartments.length
+    )
+      return;
+    await syncTaskTeam(tx, actor, id, {
+      assigneeId: row.assigneeId,
+      collaboratorIds: users,
+      taggedDepartmentIds: departments,
+    });
+    await tx.taskCollaborator.createMany({
+      data: users.map((userId) => ({ taskId: id, userId })),
+      skipDuplicates: true,
+    });
+    await tx.taskTaggedDepartment.createMany({
+      data: departments.map((departmentId) => ({ taskId: id, departmentId })),
+      skipDuplicates: true,
+    });
+    const updated = await tx.task.update({
+      where: { id },
+      data: { revision: { increment: 1 } },
+      include,
+    });
+    await this.history(tx, updated, actor, "team_invited", requestId);
   }
   async transition(actor: string, id: string, input: TransitionInput, requestId: string) {
     await this.database.client.$transaction(async (tx) => {

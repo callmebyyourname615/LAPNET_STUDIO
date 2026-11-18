@@ -157,9 +157,39 @@ export const taskSchema = z.object({
   assignee: taskPersonSchema,
   assignedBy: taskPersonSchema,
   collaborators: z.array(taskPersonSchema),
-  permissions: z.object({ view: z.boolean(), edit: z.boolean(), manageAccess: z.boolean() }),
+  taggedDepartments: z
+    .array(z.object({ id: z.uuid(), code: z.string(), name: z.string(), active: z.boolean() }))
+    .default([]),
+  permissions: z.object({
+    view: z.boolean(),
+    edit: z.boolean(),
+    comment: z.boolean().default(false),
+    manageAccess: z.boolean(),
+    manageTeam: z.boolean().default(false),
+  }),
 });
 export type TaskRecord = z.infer<typeof taskSchema>;
+export const taskDocumentsSchema = z.object({
+  items: z.array(
+    z.object({
+      id: z.uuid(),
+      title: z.string(),
+      href: z.string(),
+      latestVersion: z.number().int().nullable(),
+    }),
+  ),
+  activity: z.array(
+    z.object({
+      id: z.uuid(),
+      kind: z.enum(["linked", "version"]),
+      title: z.string(),
+      filename: z.string().nullable(),
+      actorName: z.string().nullable(),
+      occurredAt: z.iso.datetime(),
+      version: z.number().int().nullable(),
+    }),
+  ),
+});
 export const taskPageSchema = z.object({
   items: z.array(taskSchema),
   total: z.number().int(),
@@ -167,6 +197,9 @@ export const taskPageSchema = z.object({
 });
 export type TaskPage = z.infer<typeof taskPageSchema>;
 export const taskOptionsSchema = z.object({
+  taggableDepartments: z
+    .array(z.object({ id: z.uuid(), code: z.string(), name: z.string() }))
+    .default([]),
   departments: z.array(z.object({ id: z.uuid(), code: z.string(), name: z.string() })),
   users: z.array(taskPersonSchema),
 });
@@ -202,7 +235,8 @@ export type TaskWrite = {
   dueDate: string | null;
   assigneeId: string;
   collaboratorIds: string[];
-  shareParticipants: boolean;
+  shareParticipants?: boolean;
+  taggedDepartmentIds?: string[];
 };
 
 export const taskDepartmentsSchema = z.array(
@@ -377,7 +411,7 @@ export const commentSchema = z.object({
   revision: z.number().int(),
   createdAt: z.string(),
   updatedAt: z.string(),
-  author: taskPersonSchema,
+  author: taskPersonSchema.extend({ departments: z.array(z.string()).default([]) }),
   canEdit: z.boolean(),
 });
 export const commentsSchema = z.object({

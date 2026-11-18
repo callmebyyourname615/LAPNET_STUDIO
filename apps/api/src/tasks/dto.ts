@@ -43,11 +43,21 @@ export class TaskFields {
   @ArrayUnique()
   @IsUUID(undefined, { each: true })
   collaboratorIds!: string[];
-  @ApiProperty({
-    description: "Explicit consent to issue view/edit grants to the selected participants",
+  @ApiPropertyOptional({ type: [String], maxItems: 25 })
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(25)
+  @ArrayUnique()
+  @IsUUID(undefined, { each: true })
+  taggedDepartmentIds?: string[];
+  @ApiPropertyOptional({
+    deprecated: true,
+    description:
+      "Compatibility field; Host-selected participants receive team grants automatically",
   })
+  @IsOptional()
   @IsBoolean()
-  shareParticipants!: boolean;
+  shareParticipants?: boolean;
 }
 export class CreateTaskInput extends TaskFields {
   @ApiProperty() @IsUUID() departmentId!: string;

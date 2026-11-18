@@ -1504,6 +1504,34 @@
         ]
       }
     },
+    "/api/v1/tasks/{id}/documents": {
+      "get": {
+        "operationId": "TasksController_documents",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "cookie": []
+          }
+        ],
+        "tags": [
+          "Tasks"
+        ]
+      }
+    },
     "/api/v1/posts": {
       "get": {
         "operationId": "BusinessController_list[0]",
@@ -4632,9 +4660,17 @@
               "type": "string"
             }
           },
+          "taggedDepartmentIds": {
+            "maxItems": 25,
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
           "shareParticipants": {
             "type": "boolean",
-            "description": "Explicit consent to issue view/edit grants to the selected participants"
+            "deprecated": true,
+            "description": "Compatibility field; Host-selected participants receive team grants automatically"
           },
           "departmentId": {
             "type": "string"
@@ -4646,7 +4682,6 @@
           "priority",
           "assigneeId",
           "collaboratorIds",
-          "shareParticipants",
           "departmentId"
         ]
       },
@@ -4685,9 +4720,17 @@
               "type": "string"
             }
           },
+          "taggedDepartmentIds": {
+            "maxItems": 25,
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
           "shareParticipants": {
             "type": "boolean",
-            "description": "Explicit consent to issue view/edit grants to the selected participants"
+            "deprecated": true,
+            "description": "Compatibility field; Host-selected participants receive team grants automatically"
           },
           "revision": {
             "type": "number",
@@ -4700,7 +4743,6 @@
           "priority",
           "assigneeId",
           "collaboratorIds",
-          "shareParticipants",
           "revision"
         ]
       },

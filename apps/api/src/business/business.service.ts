@@ -31,6 +31,8 @@ import {
   MentionInput,
 } from "./dto";
 import { enqueueNotification } from "./events";
+import { TasksService } from "../tasks/tasks.service";
+import { taskTeamRecipients, teamInclude } from "../tasks/team";
 const person = { id: true, displayName: true, status: true } as const;
 const include = {
   resource: {
@@ -86,6 +88,7 @@ export class BusinessService {
   constructor(
     readonly database: DatabaseService,
     readonly authorization: AuthorizationService,
+    private readonly tasks: TasksService,
   ) {}
   where(
     context: Context,
@@ -525,12 +528,27 @@ export class BusinessService {
         archivedAt: null,
         AND: afterCursor(decodeCursor(q.cursor)),
       },
-      include: { author: { select: person } },
+      include: {
+        author: {
+          select: {
+            ...person,
+            memberships: {
+              where: { ...current(), department: { active: true } },
+              select: { department: { select: { name: true } } },
+              orderBy: { department: { code: "asc" } },
+            },
+          },
+        },
+      },
       orderBy: [{ createdAt: "desc" }, { id: "desc" }],
       take: q.limit + 1,
     });
     return {
-      items: rows.slice(0, q.limit).map((row) => ({ ...row, canEdit: row.authorId === actor })),
+      items: rows.slice(0, q.limit).map(({ author: { memberships, ...author }, ...row }) => ({
+        ...row,
+        author: { ...author, departments: memberships.map(({ department }) => department.name) },
+        canEdit: row.authorId === actor,
+      })),
       nextCursor: rows.length > q.limit ? encodeCursor(rows[q.limit - 1]) : null,
     };
   }
@@ -586,18 +604,21 @@ export class BusinessService {
         { commentId: row.id, revision: row.revision },
       );
       if (!archive) {
+        if (policy.kind === "task" && policy.ownerUserId === actor)
+          await this.tasks.inviteFromMentions(tx, actor, policy.id, input.mentions, requestId);
         await this.mentions(tx, actor, row.id, policy.id, input.mentions);
         const task = await tx.task.findUnique({
           where: { id: policy.id },
-          include: { collaborators: { select: { userId: true } } },
+          include: {
+            ...teamInclude,
+            resource: true,
+            collaborators: { include: { user: { select: { id: true } } } },
+          },
         });
         await enqueueNotification(
           tx,
           policy.id,
-          [
-            policy.ownerUserId,
-            ...(task ? [task.assigneeId, ...task.collaborators.map((x) => x.userId)] : []),
-          ],
+          task ? await taskTeamRecipients(tx, task) : [policy.ownerUserId],
           "comment",
           `comment:${row.id}:${row.revision}`,
           actor,
@@ -756,12 +777,14 @@ export class BusinessService {
       await this.policy(actor, sourceId, "edit", tx);
       await this.policy(actor, input.targetId, "view", tx);
       if (sourceId === input.targetId) throw new BadRequestException();
-      const row = await tx.recordLink.upsert({
-        where: { sourceId_targetId_kind: { sourceId, targetId: input.targetId, kind: input.kind } },
-        create: { sourceId, targetId: input.targetId, kind: input.kind },
-        update: {},
+      const link = { sourceId, targetId: input.targetId, kind: input.kind };
+      const existing = await tx.recordLink.findUnique({ where: { sourceId_targetId_kind: link } });
+      if (existing) return existing;
+      const row = await tx.recordLink.create({
+        data: link,
       });
       await this.authorization.audit(tx, actor, "resource.linked", sourceId, requestId, {
+        linkId: row.id,
         targetId: input.targetId,
         kind: input.kind,
       });
@@ -802,6 +825,142 @@ export class BusinessService {
       }
     }
     return items;
+  }
+  async taskDocuments(actor: string, id: string) {
+    return this.database.client.$transaction(
+      async (tx) => {
+        const task = await this.authorization.requireResource(actor, id, "view", tx);
+        if (task.kind !== "task") throw new NotFoundException();
+        const context = await this.authorization.context(actor, tx);
+        const linkFields = {
+          id: true,
+          sourceId: true,
+          targetId: true,
+          kind: true,
+          createdAt: true,
+        } as const;
+        const documents = await tx.businessRecord.findMany({
+          where: {
+            AND: [
+              this.where(context, "document"),
+              {
+                OR: [
+                  { resource: { sourceLinks: { some: { targetId: id } } } },
+                  { resource: { targetLinks: { some: { sourceId: id } } } },
+                ],
+              },
+            ],
+          },
+          orderBy: [{ updatedAt: "desc" }, { id: "desc" }],
+          take: 100,
+          select: {
+            id: true,
+            title: true,
+            resource: {
+              select: {
+                sourceLinks: { where: { targetId: id }, select: linkFields },
+                targetLinks: { where: { sourceId: id }, select: linkFields },
+              },
+            },
+            versions: {
+              orderBy: { number: "desc" },
+              take: 20,
+              select: {
+                id: true,
+                number: true,
+                createdAt: true,
+                filename: true,
+                uploadedById: true,
+              },
+            },
+          },
+        });
+        const links = documents.flatMap(({ resource }) => [
+          ...resource.sourceLinks,
+          ...resource.targetLinks,
+        ]);
+        const versions = documents.flatMap(({ versions }) => versions);
+        const uploadedBy = versions.flatMap((version) =>
+          version.uploadedById ? [version.uploadedById] : [],
+        );
+        const [linkAudit, uploaders] = await Promise.all([
+          tx.auditEvent.findMany({
+            where: {
+              action: "resource.linked",
+              targetId: { in: [...new Set(links.map((link) => link.sourceId))] },
+              OR: [
+                { occurredAt: { in: links.map((link) => link.createdAt) } },
+                ...links.map((link) => ({ metadata: { path: ["linkId"], equals: link.id } })),
+              ],
+            },
+            orderBy: { occurredAt: "desc" },
+            select: {
+              targetId: true,
+              occurredAt: true,
+              metadata: true,
+              actor: { select: { displayName: true } },
+            },
+          }),
+          tx.user.findMany({
+            where: { id: { in: [...new Set(uploadedBy)] } },
+            select: { id: true, displayName: true },
+          }),
+        ]);
+        const linkKey = (source: string | null, target: unknown, kind: unknown, at: Date) =>
+          JSON.stringify([source, target, kind, at.toISOString()]);
+        const linkedBy = new Map(
+          linkAudit.map((event) => {
+            const meta = event.metadata as {
+              targetId?: string;
+              kind?: string;
+              linkId?: string;
+            } | null;
+            return [
+              meta?.linkId ?? linkKey(event.targetId, meta?.targetId, meta?.kind, event.occurredAt),
+              event.actor?.displayName ?? null,
+            ];
+          }),
+        );
+        const names = new Map(uploaders.map((user) => [user.id, user.displayName]));
+        const activity = documents.flatMap((document) => [
+          ...[...document.resource.sourceLinks, ...document.resource.targetLinks].map((link) => ({
+            id: link.id,
+            kind: "linked",
+            title: document.title,
+            filename: null,
+            actorName:
+              linkedBy.get(link.id) ??
+              linkedBy.get(linkKey(link.sourceId, link.targetId, link.kind, link.createdAt)) ??
+              null,
+            occurredAt: link.createdAt.toISOString(),
+            version: null,
+          })),
+          ...document.versions.map((version) => ({
+            id: version.id,
+            kind: "version",
+            title: document.title,
+            filename: version.filename,
+            actorName: names.get(version.uploadedById ?? "") ?? null,
+            occurredAt: version.createdAt.toISOString(),
+            version: version.number,
+          })),
+        ]);
+        activity.sort(
+          (left, right) =>
+            right.occurredAt.localeCompare(left.occurredAt) || left.id.localeCompare(right.id),
+        );
+        return {
+          items: documents.map((document) => ({
+            id: document.id,
+            title: document.title,
+            href: this.href("document", document.id),
+            latestVersion: document.versions[0]?.number ?? null,
+          })),
+          activity: activity.slice(0, 100),
+        };
+      },
+      { isolationLevel: "RepeatableRead" },
+    );
   }
   href(kind: string, id: string) {
     return kind === "task"

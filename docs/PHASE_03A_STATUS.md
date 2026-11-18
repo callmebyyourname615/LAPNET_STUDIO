@@ -1,5 +1,7 @@
 # Phase 03A — ວຽກທີ່ບັນທຶກໃນລະບົບ
 
+> ອັບເດດ 18 ພະຈິກ 2026: workflow Host + ເຊີນຄົນ/ພະແນກ + ຮ່ວມອັບເດດວຽກ ມີກົດໃໝ່ຕາມ [TASK_HOST_TEAM.md](TASK_HOST_TEAM.md). ກົດໃໝ່ແທນ checkbox ແບ່ງປັນ, ສິດປ່ຽນທີມ ແລະການຖອນຄົນໃນບົດລາຍງານເກົ່າຂ້າງລຸ່ມ. ການແກ້ Portal background refresh ຢູ່ [PORTAL_REFRESH.md](PORTAL_REFRESH.md).
+
 > ອັບເດດ 10 ພະຈິກ 2026: ຕາມຄຳຂໍຫຼ້າສຸດ ໜ້າ Login ກວດ Username/Password ກັບ API ຈິງໃນທຸກໂໝດແລ້ວ. ເອົາການກົດຂ້າມແບບ preview ອອກ; `?auth=preview`, `VITE_ENABLE_UI_PREVIEW` ແລະ browser flags ເກົ່າບໍ່ສາມາດຂ້າມ Login. ສ່ວນອະທິບາຍ preview ເກົ່າຂ້າງລຸ່ມເປັນປະຫວັດການພັດທະນາ.
 > ໃນ local HTTP development ຮອງຮັບ `localhost`, `127.0.0.1`, `[::1]` ສະເພາະ port ທີ່ຕັ້ງ `APP_ORIGIN`; ຍັງກວດ CSRF ແລະ ປະຕິເສດ cross-site. Production ເຊື່ອໃຈສະເພາະ HTTPS origin ທີ່ຕັ້ງໄວ້.
 

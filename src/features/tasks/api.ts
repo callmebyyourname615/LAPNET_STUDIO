@@ -17,6 +17,7 @@ export const priorityNames: Record<(typeof taskPriorities)[number], string> = {
 };
 export const actionNames: Record<string, string> = {
   created: "ສ້າງວຽກ",
+  team_invited: "ເຊີນທີມເຂົ້າຮ່ວມວຽກ",
   updated: "ແກ້ໄຂລາຍລະອຽດ",
   transitioned: "ປ່ຽນສະຖານະ",
   reopened: "ເປີດວຽກຄືນ",

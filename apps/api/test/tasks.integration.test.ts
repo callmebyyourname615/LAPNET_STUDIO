@@ -126,7 +126,7 @@ test("Phase 03A persistent tasks", { skip: !process.env.TEST_IDENTITY_DATABASE_U
             400,
           );
         assert.equal(
-          (await request(fc, "/api/v1/tasks", "POST", { ...base, collaboratorIds: [it.id] }))
+          (await request(fc, "/api/v1/tasks", "POST", { ...base, collaboratorIds: [finance.id] }))
             .status,
           400,
         );
@@ -204,13 +204,13 @@ test("Phase 03A persistent tasks", { skip: !process.env.TEST_IDENTITY_DATABASE_U
       },
     );
     await t.test(
-      "explicit participant sharing grants access; assignment is separate from permission",
+      "Host-selected participants receive explicit grants automatically; only Host manages the team",
       async () => {
         const update = await request(
           fc,
           "/api/v1/tasks/" + id,
           "PATCH",
-          fields({ collaboratorIds: [it.id], shareParticipants: true }),
+          fields({ collaboratorIds: [it.id] }),
         );
         assert.equal(update.status, 200);
         revision = update.value.revision;
@@ -395,19 +395,23 @@ test("Phase 03A persistent tasks", { skip: !process.env.TEST_IDENTITY_DATABASE_U
           oc,
           "/api/v1/tasks/" + id,
           "PATCH",
-          fields({ title: "Scoped editor change" }),
+          fields({ title: "Scoped editor change", assigneeId: it.id }),
         );
         assert.equal(updated.status, 200);
-        assert.equal(updated.value.assignedBy.id, outsider.id);
-        assert.equal((await request(oc, "/api/v1/tasks?view=assigned")).value.total, 1);
+        assert.equal(updated.value.assignedBy.id, finance.id);
+        assert.equal((await request(oc, "/api/v1/tasks?view=assigned")).value.total, 0);
         const metadataOnly = await request(
           fc,
           "/api/v1/tasks/" + id,
           "PATCH",
-          fields({ revision: updated.value.revision, title: "Owner updates metadata" }),
+          fields({
+            revision: updated.value.revision,
+            title: "Owner updates metadata",
+            assigneeId: it.id,
+          }),
         );
         assert.equal(metadataOnly.status, 200);
-        assert.equal(metadataOnly.value.assignedBy.id, outsider.id);
+        assert.equal(metadataOnly.value.assignedBy.id, finance.id);
 
         revision = metadataOnly.value.revision;
         assert.equal(
