@@ -108,6 +108,29 @@ export const meSchema = z.object({
 });
 export type MeResponse = z.infer<typeof meSchema>;
 
+export const auditEventSchema = z.object({
+  id: z.uuid(),
+  actorId: z.uuid().nullable(),
+  action: z.string(),
+  outcome: z.enum(["success", "failure"]),
+  targetId: z.uuid().nullable(),
+  requestId: z.uuid().nullable(),
+  occurredAt: z.iso.datetime(),
+  actor: z
+    .object({ id: z.uuid(), username: z.string().nullable(), displayName: z.string() })
+    .nullable(),
+  metadata: z.record(
+    z.string(),
+    z.union([z.string(), z.number(), z.boolean(), z.array(z.string())]),
+  ),
+});
+export const auditPageSchema = z.object({
+  items: z.array(auditEventSchema),
+  total: z.number().int().nonnegative(),
+  nextCursor: z.string().nullable(),
+});
+export type AuditEvent = z.infer<typeof auditEventSchema>;
+
 export const taskStatuses = ["todo", "in_progress", "blocked", "done", "cancelled"] as const;
 export const taskPriorities = ["low", "normal", "high", "urgent"] as const;
 export type TaskStatus = (typeof taskStatuses)[number];

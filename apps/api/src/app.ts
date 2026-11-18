@@ -18,7 +18,10 @@ import {
   ServiceUnavailableException,
   RequestMethod,
 } from "@nestjs/common";
-import { NestFactory, APP_GUARD } from "@nestjs/core";
+import { NestFactory, APP_GUARD, APP_INTERCEPTOR } from "@nestjs/core";
+import { AuditController } from "./identity/audit.controller";
+import { AuditService } from "./identity/audit.service";
+import { AuditInterceptor } from "./identity/audit.interceptor";
 import { NestExpressApplication } from "@nestjs/platform-express";
 import { ApiOperation, ApiResponse, ApiTags } from "@nestjs/swagger";
 import helmet from "helmet";
@@ -90,6 +93,7 @@ class VersionController {
 @Module({
   controllers: [
     HealthController,
+    AuditController,
     VersionController,
     AuthController,
     UserImagesController,
@@ -103,6 +107,8 @@ class VersionController {
   ],
   providers: [
     DatabaseService,
+    AuditService,
+    { provide: APP_INTERCEPTOR, useClass: AuditInterceptor },
     AuthService,
     UserImagesService,
     AccountProfileService,

@@ -119,6 +119,13 @@ export class AuthorizationService {
     requestId: string | null,
     metadata: Prisma.InputJsonObject = {},
   ) {
-    await db.auditEvent.create({ data: { actorId, action, targetId, requestId, metadata } });
+    const outcome =
+      ["auth.login_failed", "auth.login_rate_limited"].includes(action) ||
+      (typeof metadata.status === "number" && metadata.status >= 400)
+        ? "failure"
+        : "success";
+    await db.auditEvent.create({
+      data: { actorId, action, targetId, requestId, metadata, outcome },
+    });
   }
 }

@@ -96,6 +96,7 @@ pnpm db:verify --after-restart
 
 ## ເອກະສານ
 
+- [Audit Logs — ປະຫວັດການໃຊ້ງານ](docs/AUDIT_LOGS.md)
 - [ສະຖານະ Phase 02](docs/PHASE_02_STATUS.md)
 - [ຄູ່ມືບັນຊີ ແລະ ສິດ](docs/AUTHENTICATION.md)
 - [ການນຳ component Login ມາໃຊ້](docs/LOGIN_INTEGRATION.md)

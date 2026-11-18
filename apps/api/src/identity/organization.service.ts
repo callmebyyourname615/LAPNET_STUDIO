@@ -351,15 +351,4 @@ export class OrganizationService {
       return result;
     });
   }
-  async audit(actor: string, query: DirectoryQuery) {
-    await this.authorization.requireAdmin(actor);
-    const cursor = pageCursor(query.cursor);
-    const rows = await this.database.client.auditEvent.findMany({
-      where: cursor ? { id: { gt: cursor } } : {},
-      orderBy: { id: "asc" },
-      take: query.limit + 1,
-    });
-    const items = rows.slice(0, query.limit);
-    return { items, nextCursor: rows.length > query.limit ? nextCursor(items.at(-1)!.id) : null };
-  }
 }

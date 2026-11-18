@@ -30,7 +30,8 @@
     "dev:worker": "pnpm --filter @lapnet/api worker",
     "test:business": "node scripts/test-identity.ts business",
     "test:documents": "node scripts/test-identity.ts documents",
-    "test:account": "node scripts/test-identity.ts account"
+    "test:account": "node scripts/test-identity.ts account",
+    "test:audit": "node scripts/test-identity.ts audit"
   },
   "dependencies": {
     "@gsap/react": "2.1.2",

@@ -11,6 +11,7 @@ import {
 } from "@nestjs/common";
 import { Reflector } from "@nestjs/core";
 import { AuthService } from "./identity/auth.service";
+import { AuditService, auditStatus } from "./identity/audit.service";
 import type { SessionPrincipal } from "./identity/types";
 import { Request, Response } from "express";
 import { ApiPropertyOptional } from "@nestjs/swagger";
@@ -49,6 +50,7 @@ export class SessionGuard implements CanActivate {
   constructor(
     private readonly reflector: Reflector,
     private readonly auth: AuthService,
+    private readonly audit: AuditService,
   ) {}
   async canActivate(context: ExecutionContext) {
     if (
@@ -60,8 +62,13 @@ export class SessionGuard implements CanActivate {
       return true;
     const request = context.switchToHttp().getRequest<PortalRequest>();
     request.principal = await this.auth.authenticate(request);
-    if (!["GET", "HEAD", "OPTIONS"].includes(request.method))
-      this.auth.checkCsrf(request, request.principal);
+    try {
+      if (!["GET", "HEAD", "OPTIONS"].includes(request.method))
+        this.auth.checkCsrf(request, request.principal);
+    } catch (error) {
+      await this.audit.request(request, auditStatus(error));
+      throw error;
+    }
     return true;
   }
 }

@@ -145,9 +145,6 @@ export class IdentityController {
   @Delete("roles/:id") revokeRole(@Req() r: PortalRequest, @Param("id", ParseUUIDPipe) id: string) {
     return this.organization.revokeRole(r.principal!.user.id, id, r.requestId);
   }
-  @Get("audit-events") audit(@Req() r: PortalRequest, @Query() q: DirectoryQuery) {
-    return this.organization.audit(r.principal!.user.id, q);
-  }
 }
 
 @ApiCookieAuth()

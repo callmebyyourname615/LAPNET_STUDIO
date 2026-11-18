@@ -3,6 +3,7 @@ import { useState, useEffect, useCallback, useRef, type FormEvent } from "react"
 import { apiRequest } from "../../lib/api";
 import { useAuth, errorText } from "./Auth";
 import { t } from "../../i18n/lo";
+import { Link, useLocation } from "react-router-dom";
 
 type Department = { id: string; code: string; name: string; active: boolean };
 type Membership = { id: string; department: Department; membershipRole: string };
@@ -42,13 +43,6 @@ type Grant = {
   departmentId: string | null;
   user: { displayName: string } | null;
   department: { name: string } | null;
-};
-type Audit = {
-  id: string;
-  action: string;
-  actorId: string | null;
-  targetId: string | null;
-  occurredAt: string;
 };
 const roleName: Record<string, string> = {
   portal_admin: "ຜູ້ດູແລລະບົບ",
@@ -142,11 +136,14 @@ function PreviewIdentity({ type }: { type: "people" | "departments" | "access" }
 function ConnectedIdentityAdmin({ type }: { type: "people" | "departments" | "access" }) {
   const { me, refresh } = useAuth();
   const admin = !!me?.capabilities.manageUsers;
+  const location = useLocation();
+  const auditHref = location.pathname.startsWith("/document-workspace/")
+    ? "/document-workspace/portal/admin/audit"
+    : "/admin/audit";
   const [org, setOrg] = useState<Organization | null>(null);
   const [people, setPeople] = useState<Page<Person>>({ items: [], nextCursor: null });
   const [roles, setRoles] = useState<Role[]>([]);
   const [records, setRecords] = useState<RecordItem[]>([]);
-  const [audit, setAudit] = useState<Audit[]>([]);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
   const [busy, setBusy] = useState(false);
@@ -191,17 +188,6 @@ function ConnectedIdentityAdmin({ type }: { type: "people" | "departments" | "ac
         admin && type === "access"
           ? await apiRequest<Role[]>("/api/v1/roles", "GET", undefined, request.signal)
           : [];
-      const nextAudit =
-        admin && type === "access"
-          ? (
-              await apiRequest<Page<Audit>>(
-                "/api/v1/audit-events?limit=25",
-                "GET",
-                undefined,
-                request.signal,
-              )
-            ).items
-          : [];
       const nextRecords =
         type === "access"
           ? (
@@ -217,7 +203,6 @@ function ConnectedIdentityAdmin({ type }: { type: "people" | "departments" | "ac
       setOrg(organization);
       setPeople(users);
       setRoles(nextRoles);
-      setAudit(nextAudit);
       setRecords(nextRecords);
     } catch (error) {
       if (!request.signal.aborted) setError(errorText(error));
@@ -922,24 +907,13 @@ function ConnectedIdentityAdmin({ type }: { type: "people" | "departments" | "ac
               </>
             )}
           </section>
-          {admin && (
+          {me?.capabilities.viewAudit && (
             <section className="panel">
-              <h2>ປະຫວັດການຈັດການ</h2>
-              <div className="identity-list">
-                {audit.map((event) => (
-                  <div className="identity-inline identity-row" key={event.id}>
-                    <time>
-                      {new Intl.DateTimeFormat("lo-LA", {
-                        dateStyle: "short",
-                        timeStyle: "short",
-                        timeZone: "Asia/Vientiane",
-                      }).format(new Date(event.occurredAt))}
-                    </time>
-                    <span>{t(event.action)}</span>
-                    <small>{event.targetId?.slice(0, 8) ?? "—"}</small>
-                  </div>
-                ))}
-              </div>
+              <h2>ປະຫວັດການໃຊ້ງານ</h2>
+              <p>ເບິ່ງກິດຈະກຳຜູ້ໃຊ້ ພ້ອມຄົ້ນຫາ ແລະ ກັ່ນຕອງຕາມເວລາ.</p>
+              <Link className="button" to={auditHref}>
+                ເປີດປະຫວັດການໃຊ້ງານ
+              </Link>
             </section>
           )}
         </>

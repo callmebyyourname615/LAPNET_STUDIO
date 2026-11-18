@@ -147,8 +147,21 @@ export class AuthService {
     rememberMe = false,
   ) {
     this.requireOrigin(request);
-    await this.throttle("ip:" + (request.ip ?? request.socket.remoteAddress ?? "unknown"), 60);
-    await this.throttle("username:" + username, 10);
+    try {
+      await this.throttle("ip:" + (request.ip ?? request.socket.remoteAddress ?? "unknown"), 60);
+      await this.throttle("username:" + username, 10);
+    } catch (error) {
+      if (error instanceof HttpException && error.getStatus() === 429)
+        await this.authorization.audit(
+          this.database.client,
+          null,
+          "auth.login_rate_limited",
+          null,
+          request.requestId,
+          { attemptedUsername: username },
+        );
+      throw error;
+    }
     const user = await this.database.client.user.findUnique({ where: { username } });
     const valid = await this.verify(user?.passwordHash ?? (await this.dummyHash), password);
     if (!valid || !user || user.status !== "active" || !user.passwordHash) {
@@ -158,6 +171,7 @@ export class AuthService {
         "auth.login_failed",
         null,
         request.requestId,
+        { attemptedUsername: username },
       );
       throw new UnauthorizedException();
     }

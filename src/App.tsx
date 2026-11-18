@@ -4,6 +4,7 @@ import { Skeleton } from "./components/ui/skeleton";
 import { InstallAppButton } from "./components/ui/install-app";
 import { ProfileMenu } from "./components/ui/profile-menu";
 import { AccountAvatar } from "./components/ui/account-avatar";
+import { usePageAudit } from "./features/identity/use-page-audit";
 import {t,tNode} from './i18n/lo';
 import { useEffect, useMemo, useRef, useState,lazy,Suspense, type FormEvent, type ReactNode } from "react";
 import {Authentication,useAuth,PasswordChange} from './features/identity/Auth';
@@ -16,6 +17,7 @@ const ConnectedTasks=lazy(()=>import('./features/tasks/Tasks').then(module=>({de
 const TaskDashboard=lazy(()=>import('./features/tasks/Tasks').then(module=>({default:module.TaskDashboard})));
 const IdentityAdmin=lazy(()=>import('./features/identity/Admin').then(module=>({default:module.IdentityAdmin})));
 const SettingsPage=lazy(()=>import('./features/identity/Settings'));
+const AuditLogs=lazy(()=>import('./features/identity/AuditLogs'));
 const DocumentWorkspace=lazy(()=>import('./features/document-workspace/Workspace'));
 
 type TaskState = "To do" | "In progress" | "Blocked" | "Done" | "Cancelled";
@@ -105,6 +107,7 @@ const navGroups = [
       ["/admin/people", "People", "users"],
       ["/admin/departments", "Departments", "org"],
       ["/admin/access", "Access", "lock"],
+      ["/admin/audit", "ປະຫວັດການໃຊ້ງານ", "feed"],
     ],
   },
 ];
@@ -326,6 +329,7 @@ function Sidebar({
               <div className="nav-label">{tNode(group.label)}</div>
               {tNode(group.items.map(([href, label, icon]) => {
                 if(href==='/admin/people'&&!me?.capabilities.manageUsers&&!preview)return null;
+                if(href==='/admin/audit'&&!me?.capabilities.viewAudit)return null;
                 const active =
                   path === href || (href !== "/dashboard" && path.startsWith(href + "/"));
                 return (
@@ -385,6 +389,7 @@ function PortalHeaderActions({ go, unread }: { go: (path: string) => void; unrea
   return (
     <div className="top-actions">
         <InstallAppButton />
+        {me?.capabilities.viewAudit && <button className="icon-button" style={{display:"grid"}} aria-label="Audit Logs" title="ປະຫວັດການໃຊ້ງານ" onClick={()=>go('/admin/audit')}><Icon name="feed" /></button>}
         <button className="icon-button" aria-label={t("Search")} onClick={()=>go("/search")}>
           <Icon name="search" />
         </button>
@@ -1836,6 +1841,7 @@ function NewTaskModal({ close, add }: { close: () => void; add: (task: Task) => 
 function Portal() {
   const { path: location, go: navigate } = usePath();
   const [workspacePath, query = ""] = location.split("?");
+  usePageAudit(workspacePath);
   const documentMode = isDocumentWorkspace(workspacePath);
   const sharedPage = workspacePath.startsWith('/document-workspace/portal/');
   const path = sharedPage ? workspacePath.slice('/document-workspace/portal'.length) : workspacePath;
@@ -1843,13 +1849,14 @@ function Portal() {
   const [drawer, setDrawer] = useState(false);
   const notifications=useTaskData('/api/v1/notifications?limit=1',notificationsSchema);
   useEffect(()=>{const timer=setInterval(()=>{if(!document.hidden)notifications.reload();},30000);return()=>clearInterval(timer);},[notifications.reload]);
-  const title = path==='/settings'?'ຕັ້ງຄ່າ':path==='/search'?'Search':path==='/account'?'ບັນຊີຂອງຂ້ອຍ':path.startsWith('/tasks')?'Tasks':path.startsWith('/documents')?'Documents':path.startsWith('/companies')?'Companies':path.startsWith('/feed')?'Work Feed':path.startsWith('/notifications')?'Notifications':path.startsWith('/admin')?'Administration':'Dashboard';
+  const title = path==='/admin/audit'?'ປະຫວັດການໃຊ້ງານ':path==='/settings'?'ຕັ້ງຄ່າ':path==='/search'?'Search':path==='/account'?'ບັນຊີຂອງຂ້ອຍ':path.startsWith('/tasks')?'Tasks':path.startsWith('/documents')?'Documents':path.startsWith('/companies')?'Companies':path.startsWith('/feed')?'Work Feed':path.startsWith('/notifications')?'Notifications':path.startsWith('/admin')?'Administration':'Dashboard';
   const taskId=path.match(/^\/tasks\/([^/]+)/)?.[1];
   const content=useMemo(()=>{
     if(path.startsWith('/tasks'))return <ConnectedTasks key={path+'?'+query} id={taskId} query={query} go={go}/>;
     if(path==='/dashboard'||path==='/sign-in'||path==='/')return <TaskDashboard go={go}/>;
     if(path==='/account')return <PasswordChange/>;
     if(path==='/settings')return <SettingsPage/>;
+    if(path==='/admin/audit')return <AuditLogs/>;
     if(path==='/search')return <PortalSearch query={query} go={go}/>;
     if(path==='/notifications')return <PortalNotifications go={go} onChanged={notifications.reload}/>;
     const kinds=[['feed','post'],['companies','company'],['documents','document'],['interactions','interaction']] as const;

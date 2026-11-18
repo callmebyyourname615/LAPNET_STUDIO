@@ -1,6 +1,6 @@
 {
   "date": "2026-11-18",
-  "scope": "Personal account Settings and Image Studio with crop, rotation and color adjustments",
+  "scope": "Highest-role audit log workspace with chronological table, filters, safe event details and mobile layout",
   "framework": {
     "value": "React 19 / Vite 8 / Tailwind 4 / TypeScript",
     "source": "package.json"
