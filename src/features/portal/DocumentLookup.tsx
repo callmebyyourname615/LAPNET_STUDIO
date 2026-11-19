@@ -30,6 +30,13 @@ export function DocumentLookup({
     workspaceDocumentPageSchema,
   );
   const pending = loading || draft.trim() !== query;
+  useEffect(() => {
+    const onFocus = () => {
+      if (!document.hidden) reload();
+    };
+    window.addEventListener("focus", onFocus);
+    return () => window.removeEventListener("focus", onFocus);
+  }, [reload]);
   return (
     <div className="portal-document-lookup">
       <label htmlFor={id}>{label}</label>

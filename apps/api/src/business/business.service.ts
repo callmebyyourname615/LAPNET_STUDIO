@@ -991,7 +991,7 @@ export class BusinessService {
       : kind === "company"
         ? "/companies/" + id
         : kind === "document"
-          ? "/documents/" + id
+          ? "/document-workspace/" + id
           : kind === "interaction"
             ? "/interactions/" + id
             : "/feed/" + id;

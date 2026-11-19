@@ -1,0 +1,68 @@
+/* Match the CEO Platform user-management switch with Portal typography/focus. */
+.portal-toggle-switch {
+  --toggle-on: #28d12d;
+  --toggle-off: #eb0000;
+  position: relative;
+  display: inline-grid;
+  place-items: center;
+  width: 48px;
+  height: 44px;
+  padding: 0;
+  flex: none;
+  cursor: pointer;
+  border-radius: var(--radius-md);
+}
+.portal-toggle-track {
+  display: block;
+  width: 48px;
+  height: 28px;
+  padding: 4px;
+  border-radius: 999px;
+  background: var(--toggle-off);
+  transition: background var(--motion);
+}
+.portal-toggle-thumb {
+  display: block;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: var(--color-action-primary-bg);
+  transform: translateX(0);
+  transition: transform var(--motion);
+}
+.portal-toggle-switch[data-state="checked"] .portal-toggle-track {
+  background: var(--toggle-on);
+}
+.portal-toggle-switch[data-state="checked"] .portal-toggle-thumb {
+  transform: translateX(20px);
+}
+.portal-toggle-switch:focus-visible {
+  outline: 2px solid var(--color-focus);
+  outline-offset: 2px;
+}
+.portal-toggle-switch[aria-disabled="true"] {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+.portal-toggle-switch:active:not([aria-disabled="true"]) .portal-toggle-thumb {
+  scale: 0.94;
+}
+.account-status-control {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  white-space: nowrap;
+}
+.account-status-control [aria-checked="true"] + span {
+  color: var(--success-fg);
+}
+.account-status-control [aria-checked="false"] + span {
+  color: var(--danger-fg);
+}
+@media (prefers-reduced-motion: reduce) {
+  .portal-toggle-track,
+  .portal-toggle-thumb {
+    transition: none;
+  }
+}

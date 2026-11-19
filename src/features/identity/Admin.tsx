@@ -1,4 +1,5 @@
 import { Skeleton } from "../../components/ui/skeleton";
+import { ToggleSwitch } from "../../components/ui/toggle-switch";
 import { useState, useEffect, useCallback, useRef, type FormEvent } from "react";
 import { apiRequest } from "../../lib/api";
 import { useAuth, errorText } from "./Auth";
@@ -147,6 +148,7 @@ function ConnectedIdentityAdmin({ type }: { type: "people" | "departments" | "ac
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
   const [busy, setBusy] = useState(false);
+  const [pendingStatusUser, setPendingStatusUser] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [issued, setIssued] = useState<{ username: string; password: string } | null>(null);
   const [query, setQuery] = useState("");
@@ -161,71 +163,78 @@ function ConnectedIdentityAdmin({ type }: { type: "people" | "departments" | "ac
   const recordRequest = useRef<AbortController | null>(null);
   const listRequest = useRef<AbortController | null>(null);
   useEffect(() => () => recordRequest.current?.abort(), []);
-  const load = useCallback(async () => {
-    listRequest.current?.abort();
-    const request = new AbortController();
-    listRequest.current = request;
-    setLoading(true);
-    setError("");
-    try {
-      const organization = await apiRequest<Organization>(
-        "/api/v1/organization",
-        "GET",
-        undefined,
-        request.signal,
-      );
-      const users = admin
-        ? await apiRequest<Page<Person>>(
-            "/api/v1/users?limit=50" +
-              (query ? "&q=" + encodeURIComponent(query) : "") +
-              (cursor ? "&cursor=" + encodeURIComponent(cursor) : ""),
-            "GET",
-            undefined,
-            request.signal,
-          )
-        : { items: [], nextCursor: null };
-      const nextRoles =
-        admin && type === "access"
-          ? await apiRequest<Role[]>("/api/v1/roles", "GET", undefined, request.signal)
-          : [];
-      const nextRecords =
-        type === "access"
-          ? (
-              await apiRequest<Page<RecordItem>>(
-                "/api/v1/resources?limit=100",
-                "GET",
-                undefined,
-                request.signal,
-              )
-            ).items
-          : [];
-      if (request.signal.aborted) return;
-      setOrg(organization);
-      setPeople(users);
-      setRoles(nextRoles);
-      setRecords(nextRecords);
-    } catch (error) {
-      if (!request.signal.aborted) setError(errorText(error));
-    } finally {
-      if (!request.signal.aborted) setLoading(false);
-    }
-  }, [admin, type, query, cursor]);
+  const load = useCallback(
+    async (showSkeleton = true) => {
+      listRequest.current?.abort();
+      const request = new AbortController();
+      listRequest.current = request;
+      if (showSkeleton) setLoading(true);
+      setError("");
+      try {
+        const organization = await apiRequest<Organization>(
+          "/api/v1/organization",
+          "GET",
+          undefined,
+          request.signal,
+        );
+        const users = admin
+          ? await apiRequest<Page<Person>>(
+              "/api/v1/users?limit=50" +
+                (query ? "&q=" + encodeURIComponent(query) : "") +
+                (cursor ? "&cursor=" + encodeURIComponent(cursor) : ""),
+              "GET",
+              undefined,
+              request.signal,
+            )
+          : { items: [], nextCursor: null };
+        const nextRoles =
+          admin && type === "access"
+            ? await apiRequest<Role[]>("/api/v1/roles", "GET", undefined, request.signal)
+            : [];
+        const nextRecords =
+          type === "access"
+            ? (
+                await apiRequest<Page<RecordItem>>(
+                  "/api/v1/resources?limit=100",
+                  "GET",
+                  undefined,
+                  request.signal,
+                )
+              ).items
+            : [];
+        if (request.signal.aborted) return;
+        setOrg(organization);
+        setPeople(users);
+        setRoles(nextRoles);
+        setRecords(nextRecords);
+      } catch (error) {
+        if (!request.signal.aborted) setError(errorText(error));
+      } finally {
+        if (!request.signal.aborted) setLoading(false);
+      }
+    },
+    [admin, type, query, cursor],
+  );
+  const currentLoad = useRef(load);
   useEffect(() => {
+    currentLoad.current = load;
     void load();
     return () => listRequest.current?.abort();
   }, [load]);
-  async function run(work: () => Promise<unknown>) {
+  async function run(work: () => Promise<unknown>, statusUser: string | null = null) {
     setBusy(true);
+    setPendingStatusUser(statusUser);
     setError("");
     setNotice("");
     try {
       await work();
-      await load();
+      await currentLoad.current(statusUser === null);
       await refresh();
       setNotice("ບັນທຶກສຳເລັດແລ້ວ.");
     } catch (error) {
       setError(errorText(error));
     } finally {
+      setPendingStatusUser(null);
       setBusy(false);
     }
   }
@@ -336,7 +345,9 @@ function ConnectedIdentityAdmin({ type }: { type: "people" | "departments" | "ac
           {error}
         </p>
       )}
-      {busy && <Skeleton variant="inline" label="ກຳລັງບັນທຶກ..." />}
+      {busy && !people.items.some((person) => person.id === pendingStatusUser) && (
+        <Skeleton variant="inline" label="ກຳລັງບັນທຶກ..." />
+      )}
       {notice && (
         <p role="status" className="inline-success">
           {notice}
@@ -416,7 +427,13 @@ function ConnectedIdentityAdmin({ type }: { type: "people" | "departments" | "ac
                 setQuery(text(form, "q"));
               }}
             >
-              <input aria-label="ຄົ້ນຫາຜູ້ໃຊ້" name="q" placeholder="ຄົ້ນຫາຊື່ ຫຼື ຊື່ຜູ້ໃຊ້" maxLength={100} />
+              <input
+                aria-label="ຄົ້ນຫາຜູ້ໃຊ້"
+                name="q"
+                defaultValue={query}
+                placeholder="ຄົ້ນຫາຊື່ ຫຼື ຊື່ຜູ້ໃຊ້"
+                maxLength={100}
+              />
               <button className="button">ຄົ້ນຫາ</button>
             </form>
             <div className="identity-list">
@@ -424,9 +441,7 @@ function ConnectedIdentityAdmin({ type }: { type: "people" | "departments" | "ac
                 <article className="identity-person" key={person.id}>
                   <div>
                     <strong>{person.displayName}</strong>
-                    <small>
-                      {person.username} · {person.status === "active" ? "ເປີດໃຊ້" : "ລະງັບ"}
-                    </small>
+                    <small>{person.username}</small>
                     <div className="identity-tags">
                       {person.memberships.map((m) => (
                         <span key={m.id}>
@@ -485,24 +500,38 @@ function ConnectedIdentityAdmin({ type }: { type: "people" | "departments" | "ac
                     >
                       ອອກລະຫັດຜ່ານໃໝ່
                     </button>
-                    <button
-                      className="button"
-                      disabled={busy}
-                      onClick={() => {
-                        void run(() =>
-                          apiRequest("/api/v1/users/" + person.id, "PATCH", {
-                            status: person.status === "active" ? "disabled" : "active",
-                          }),
-                        );
-                      }}
-                    >
-                      {person.status === "active" ? "ລະງັບບັນຊີ" : "ເປີດບັນຊີ"}
-                    </button>
+                    <div className="account-status-control">
+                      <ToggleSwitch
+                        checked={person.status === "active"}
+                        disabled={busy && pendingStatusUser !== person.id}
+                        pending={pendingStatusUser === person.id}
+                        aria-label={"ສະຖານະບັນຊີ " + (person.username ?? person.displayName)}
+                        onCheckedChange={(checked) => {
+                          void run(async () => {
+                            const updated = await apiRequest<Pick<Person, "status">>(
+                              "/api/v1/users/" + person.id,
+                              "PATCH",
+                              { status: checked ? "active" : "disabled" },
+                            );
+                            setPeople((current) => ({
+                              ...current,
+                              items: current.items.map((item) =>
+                                item.id === person.id ? { ...item, status: updated.status } : item,
+                              ),
+                            }));
+                          }, person.id);
+                        }}
+                      />
+                      <span>{person.status === "active" ? "ເປີດໃຊ້" : "ປິດໃຊ້"}</span>
+                      {pendingStatusUser === person.id && (
+                        <Skeleton variant="inline" label="ກຳລັງປ່ຽນສະຖານະບັນຊີ..." />
+                      )}
+                    </div>
                   </div>
                 </article>
               ))}
             </div>
-            {!people.items.length && !loading && <p>ບໍ່ພົບຜູ້ໃຊ້.</p>}
+            {!people.items.length && <p>ບໍ່ພົບຜູ້ໃຊ້.</p>}
             <div className="identity-inline">
               <button className="button" disabled={!cursor} onClick={() => setCursor("")}>
                 ໜ້າທຳອິດ

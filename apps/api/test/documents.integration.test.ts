@@ -512,6 +512,7 @@ test(
             (await request(oc, taskPath + "/documents")).value,
           );
           assert.equal(timeline.items[0].id, id);
+          assert.equal(timeline.items[0].href, "/document-workspace/" + id);
           assert.equal(timeline.items[0].latestVersion, 1);
           assert.equal(
             timeline.activity.find((event) => event.kind === "linked")?.actorName,

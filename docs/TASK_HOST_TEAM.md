@@ -17,6 +17,10 @@ Timeline ໃຊ້ `src/components/ui/timeline-3.tsx`: avatar/ຕົວຫຍໍ
 
 ປຸ່ມ **ເຊື່ອມເອກະສານ** ໃຊ້ Document Workspace API ເພື່ອແສດງເອກະສານທີ່ມີສິດເບິ່ງທັນທີ. ຄົ້ນຫາໄດ້ດ້ວຍຊື່ເອກະສານ, ຊື່ໄຟລ໌, ເລກທະບຽນ ແລະ `REG-…`; ເລືອກລາຍການແລ້ວກົດ **ບັນທຶກການເຊື່ອມ**. ມີ pagination, debounce/abort, ສະຖານະບໍ່ພົບ ແລະ retry. ປ່ຽນຄຳຄົ້ນຫາ/ໜ້າຈະລ້າງການເລືອກເກົ່າ. ການເຊື່ອມບໍ່ເພີ່ມສິດຂອງເອກະສານ. ກວດດ້ວຍ `pnpm test:documents`; Browser ທົດສອບຄົ້ນຫາ/ເລືອກ/ບັນທຶກ ແລະຈໍ 320–1440px ໃນ disposable DB. ຫຼັກຖານ `output/playwright/task-document-lookup-results.json` ແລະ `.local/traces/task-document-lookup.zip` (ignored).
 
+ຖ້າວຽກຍັງບໍ່ມີເອກະສານທີ່ເຊື່ອມ ແລະ ມີສິດເບິ່ງ, tab ເອກະສານຈະເປີດຕົວເລືອກຈາກ Document tab ໃຫ້ຜູ້ມີສິດແກ້ໄຂໂດຍກົງ. ຍັງຕ້ອງເລືອກ ແລະ ບັນທຶກການເຊື່ອມ; ບໍ່ແນບເອກະສານທັງໝົດອັດຕະໂນມັດ. ກັບມາ focus ຈະໂຫຼດລາຍການໃໝ່ໂດຍຮັກສາຂໍ້ມູນໃນ form. ລິງກ໌ເອກະສານໃຊ້ `/document-workspace/:id` ເພື່ອເປີດ Document tab ຈິງ.
+
+ສິດອັບໂຫຼດບໍ່ໄດ້ຂຶ້ນກັບ Host ຢ່າງດຽວ: ຜູ້ມີສິດ edit ວຽກເຊື່ອມເອກະສານທີ່ຕົນເບິ່ງໄດ້; ອັບໂຫຼດເວີຊັນໃໝ່ຕ້ອງມີ edit ເອກະສານແຍກ; ລົງທະບຽນເອກະສານໃໝ່ໃຊ້ສິດພະແນກ. ໜ້າ Task ມີການເຊື່ອມເອກະສານເດີມ, ບໍ່ມີ direct file upload.
+
 ກວດ autocomplete ດ້ວຍ `pnpm test:mentions`; API/ACL ດ້ວຍ `pnpm test:team` ແລະ `pnpm test:account`. Browser ທົດສອບສອງບັນຊີ, ເລືອກ tag, ລຶບ tag, retry ແລະຈໍ 320/375/768px; ຫຼັກຖານ `output/playwright/task-mentions-avatar-results.json` ແລະ `.local/traces/task-mentions-avatar.zip` (ignored).
 
 ## ກົດສິດ ແລະ persistence

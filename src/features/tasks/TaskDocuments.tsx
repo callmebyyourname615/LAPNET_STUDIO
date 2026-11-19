@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { ArrowUpRight, FileClock, FileText, Link2, Plus } from "lucide-react";
 import { taskDocumentsSchema } from "@lapnet/contracts";
 import { Skeleton } from "../../components/ui/skeleton";
@@ -29,6 +29,19 @@ export function TaskDocuments({
   );
   const [adding, setAdding] = useState(startAdding);
   const [target, setTarget] = useState("");
+  const initialized = useRef("");
+  useEffect(() => {
+    if (!data || preview || !edit || initialized.current === id) return;
+    initialized.current = id;
+    if (!data.items.length) setAdding(true);
+  }, [data, preview, edit, id]);
+  useEffect(() => {
+    const onFocus = () => {
+      if (!document.hidden) reload();
+    };
+    window.addEventListener("focus", onFocus);
+    return () => window.removeEventListener("focus", onFocus);
+  }, [reload]);
   const write = useWrite();
   const documents = data?.items ?? [];
   const activity = preview ? data?.activity.slice(0, 2) : data?.activity;
@@ -77,10 +90,28 @@ export function TaskDocuments({
             </ul>
           )}
           {!documents.length && (
-            <p className="task-documents-empty">
-              <FileText size={18} aria-hidden="true" />
-              ຍັງບໍ່ພົບເອກະສານທີ່ເບິ່ງໄດ້
-            </p>
+            <div className="task-document-empty-state">
+              <p className="task-documents-empty">
+                <FileText size={18} aria-hidden="true" />
+                ຍັງບໍ່ມີເອກະສານທີ່ເຊື່ອມກັບວຽກນີ້ ແລະ ທ່ານມີສິດເບິ່ງ
+              </p>
+              {!preview && (
+                <>
+                  <p className="task-help">
+                    {edit
+                      ? "ເລືອກເອກະສານຈາກ Document tab ດ້ານລຸ່ມ ແລ້ວກົດບັນທຶກການເຊື່ອມ."
+                      : "ໃຫ້ທີມເຊື່ອມເອກະສານ ແລະ ໃຫ້ເຈົ້າຂອງເອກະສານແບ່ງປັນສິດເບິ່ງ."}
+                  </p>
+                  <button
+                    className="text-button"
+                    type="button"
+                    onClick={() => go("/document-workspace")}
+                  >
+                    ເປີດ Document tab <ArrowUpRight size={14} aria-hidden="true" />
+                  </button>
+                </>
+              )}
+            </div>
           )}
           {edit && !preview && (
             <>
