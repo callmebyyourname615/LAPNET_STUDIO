@@ -1538,6 +1538,71 @@
         "tags": [
           "Tasks"
         ]
+      },
+      "post": {
+        "operationId": "TasksController_uploadDocument",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Version-Note",
+            "in": "header",
+            "description": "URI-encoded upload note",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Document-Title",
+            "in": "header",
+            "description": "URI-encoded document title; defaults to the filename",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-File-Name",
+            "in": "header",
+            "description": "URI-encoded filename",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/octet-stream": {
+              "schema": {
+                "type": "string",
+                "format": "binary"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "cookie": []
+          }
+        ],
+        "summary": "Upload a task-scoped document; any current task viewer may upload",
+        "tags": [
+          "Tasks"
+        ]
       }
     },
     "/api/v1/posts": {

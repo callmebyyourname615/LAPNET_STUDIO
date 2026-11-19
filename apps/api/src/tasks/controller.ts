@@ -9,7 +9,15 @@ import {
   Query,
   Req,
 } from "@nestjs/common";
-import { ApiCookieAuth, ApiTags } from "@nestjs/swagger";
+import {
+  ApiBody,
+  ApiConsumes,
+  ApiCookieAuth,
+  ApiHeader,
+  ApiOperation,
+  ApiTags,
+} from "@nestjs/swagger";
+import { TaskDocumentsService } from "./documents.service";
 import type { PortalRequest } from "../http";
 import { BusinessService } from "../business/business.service";
 import {
@@ -31,6 +39,7 @@ export class TasksController {
   constructor(
     private readonly tasks: TasksService,
     private readonly business: BusinessService,
+    private readonly taskDocuments: TaskDocumentsService,
   ) {}
   @Get() list(@Req() r: PortalRequest, @Query() q: TaskQuery) {
     return this.tasks.list(r.principal!.user.id, q);
@@ -77,5 +86,19 @@ export class TasksController {
   }
   @Get(":id/documents") documents(@Req() r: PortalRequest, @Param("id", ParseUUIDPipe) id: string) {
     return this.business.taskDocuments(r.principal!.user.id, id);
+  }
+  @Post(":id/documents")
+  @ApiOperation({ summary: "Upload a task-scoped document; any current task viewer may upload" })
+  @ApiConsumes("application/octet-stream")
+  @ApiHeader({ name: "X-File-Name", required: true, description: "URI-encoded filename" })
+  @ApiHeader({
+    name: "X-Document-Title",
+    required: false,
+    description: "URI-encoded document title; defaults to the filename",
+  })
+  @ApiHeader({ name: "X-Version-Note", required: false, description: "URI-encoded upload note" })
+  @ApiBody({ schema: { type: "string", format: "binary" } })
+  uploadDocument(@Req() r: PortalRequest, @Param("id", ParseUUIDPipe) id: string) {
+    return this.taskDocuments.upload(r.principal!.user.id, id, r);
   }
 }

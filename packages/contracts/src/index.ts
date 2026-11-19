@@ -187,6 +187,10 @@ export const taskDocumentsSchema = z.object({
       actorName: z.string().nullable(),
       occurredAt: z.iso.datetime(),
       version: z.number().int().nullable(),
+      documentId: z.uuid().optional(),
+      href: z.string().optional(),
+      state: z.string().nullable().optional(),
+      bytes: z.number().nullable().optional(),
     }),
   ),
 });

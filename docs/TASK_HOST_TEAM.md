@@ -19,7 +19,15 @@ Timeline ໃຊ້ `src/components/ui/timeline-3.tsx`: avatar/ຕົວຫຍໍ
 
 ຖ້າວຽກຍັງບໍ່ມີເອກະສານທີ່ເຊື່ອມ ແລະ ມີສິດເບິ່ງ, tab ເອກະສານຈະເປີດຕົວເລືອກຈາກ Document tab ໃຫ້ຜູ້ມີສິດແກ້ໄຂໂດຍກົງ. ຍັງຕ້ອງເລືອກ ແລະ ບັນທຶກການເຊື່ອມ; ບໍ່ແນບເອກະສານທັງໝົດອັດຕະໂນມັດ. ກັບມາ focus ຈະໂຫຼດລາຍການໃໝ່ໂດຍຮັກສາຂໍ້ມູນໃນ form. ລິງກ໌ເອກະສານໃຊ້ `/document-workspace/:id` ເພື່ອເປີດ Document tab ຈິງ.
 
-ສິດອັບໂຫຼດບໍ່ໄດ້ຂຶ້ນກັບ Host ຢ່າງດຽວ: ຜູ້ມີສິດ edit ວຽກເຊື່ອມເອກະສານທີ່ຕົນເບິ່ງໄດ້; ອັບໂຫຼດເວີຊັນໃໝ່ຕ້ອງມີ edit ເອກະສານແຍກ; ລົງທະບຽນເອກະສານໃໝ່ໃຊ້ສິດພະແນກ. ໜ້າ Task ມີການເຊື່ອມເອກະສານເດີມ, ບໍ່ມີ direct file upload.
+ອັບເດດ 19 ພະຈິກ 2026: ຜູ້ທີ່ມີສິດ **ເບິ່ງ Task** ອັບໂຫຼດໄຟລ໌ໃໝ່ເຂົ້າວຽກໄດ້ໂດຍກົງ ຜ່ານ tab ເອກະສານ → **ເລືອກໄຟລ໌** → **ອັບໂຫຼດເຂົ້າວຽກ**. ເລືອກຫຼາຍໄຟລ໌ໄດ້ (25 MiB ຕໍ່ໄຟລ໌); ຖ້າບາງໄຟລ໌ລົ້ມເຫຼວຈະເກັບສະເພາະໄຟລ໌ທີ່ຍັງບໍ່ສຳເລັດໄວ້. ເອກະສານໃໝ່ຈະປາກົດໃນ Document tab.
+
+`POST /api/v1/tasks/:id/documents` ຮັບ `application/octet-stream`, URI-encoded `X-File-Name` (ບັງຄັບ), `X-Document-Title` ແລະ `X-Version-Note` (ບໍ່ບັງຄັບ). ກວດ session/CSRF/Task view ກ່ອນຮັບໄຟລ໌, lock Task ແລະກວດສິດຊ້ຳຫຼັງຮັບ bytes. ບັນທຶກ Resource, BusinessRecord (`parentId=Task`), DocumentMetadata, version, attachment link, history/audit ແລະ scan outbox ໃນ transaction ດຽວ. ລົ້ມເຫຼວຈະລຶບໄຟລ໌ຄ້າງ; ບໍ່ຕ້ອງ migration ໃໝ່.
+
+ເອກະສານທີ່ອັບໂຫຼດຜ່ານ Task ໃຊ້ central authorization ຕາມ Task: view/download ຕາມສິດເບິ່ງ Task, edit/comment ຕາມສິດ Task, ບໍ່ອອກ independent sharing grants ໃຫ້ເອກະສານນີ້. ຜູ້ເຂົ້າທີມພາຍຫຼັງເຫັນໄຟລ໌ເກົ່າ; ຖອນສິດ/ປິດບັນຊີ/ເກັບ Task ເຂົ້າຄັງມີຜົນທັນທີ ເຖິງແມ່ນຜູ້ນັ້ນເຄີຍອັບໂຫຼດໄຟລ໌. ເອກະສານເດີມທີ່ເຊື່ອມຈາກ library ຍັງໃຊ້ ACL ເດີມ.
+
+Timeline ເອກະສານໃຊ້ ReUI `src/components/reui/timeline.tsx`, ດຶງຜູ້ອັບໂຫຼດຈາກ version, ຊື່ໄຟລ໌, ສະບັບ, bytes, ສະຖານະ ແລະເວລາ DB ຈິງ (ແສດງ Asia/Vientiane). Desktop ສະຫຼັບຊ້າຍ/ຂວາ; mobile ຄໍລຳດຽວ. ໂຫຼດຂໍ້ມູນໃໝ່ເມື່ອ focus ແລະທຸກ 15 ວິນາທີທີ່ໜ້າຍັງເຫັນ, ໂດຍບໍ່ unmount form. ຍັງກວດ file signature/ZIP ແລະ ClamAV ຕາມລະບົບເດີມ; ເປີດ/ດາວໂຫຼດໄດ້ເມື່ອ available ເທົ່ານັ້ນ. ຕ້ອງຕັ້ງຄ່າ scanner ຈິງໃນ environment ກ່ອນໃຊ້ preview/download ຂອງໄຟລ໌ໃໝ່.
+
+ກວດດ້ວຍ `pnpm test:documents`, identity/tasks/team/notifications/audit suites, TypeScript/lint/format/build ແລະ Playwright ສອງບັນຊີໃນ disposable DB. API test ຄອບຄຸມຖອນສິດກາງການຮັບ bytes ແລະກວດວ່າບໍ່ມີໄຟລ໌ຄ້າງ. ຫຼັກຖານ `output/playwright/task-upload-timeline-results.json` ແລະ `.local/traces/task-upload-timeline.zip` (ignored).
 
 ກວດ autocomplete ດ້ວຍ `pnpm test:mentions`; API/ACL ດ້ວຍ `pnpm test:team` ແລະ `pnpm test:account`. Browser ທົດສອບສອງບັນຊີ, ເລືອກ tag, ລຶບ tag, retry ແລະຈໍ 320/375/768px; ຫຼັກຖານ `output/playwright/task-mentions-avatar-results.json` ແລະ `.local/traces/task-mentions-avatar.zip` (ignored).
 
@@ -31,7 +39,7 @@ Timeline ໃຊ້ `src/components/ui/timeline-3.tsx`: avatar/ຕົວຫຍໍ
 - Host ເຊີນທີມໂດຍອອກ explicit `view`, `comment`, `edit` grants ໃນ transaction ດຽວກັບ task/history/audit. ໃຊ້ central authorization; ບໍ່ອະນຸຍາດໂດຍກວດ assignee ໃນ read query.
 - Grants ອັດຕະໂນມັດມີ `source=task_team`. ເອົາຄົນ/ພະແນກອອກຈາກທີມຈະຖອນສະເພາະ grants ເຫຼົ່ານີ້; manual grants ແລະ scoped roles ຍັງຖືກກວດຕາມກົດເດີມ.
 - ການປ່ຽນ membership/ປິດບັນຊີ/ຖອນ grant ມີຜົນທັນທີ. ການແກ້ metadata ບໍ່ສ້າງ grant ທີ່ຖືກຖອນຄືນ ແລະບໍ່ປ່ຽນ latest assigner.
-- ສິດ `manage_access`, archive ແລະສິດເອກະສານ/ໄຟລ໌ບໍ່ໄດ້ຮັບເພີ່ມຈາກການເຊີນ. ເອກະສານທີ່ເຊື່ອມກັບ task ຕ້ອງຜ່ານ ACL ຂອງເອກະສານດ້ວຍ.
+- ສິດ `manage_access`, archive ແລະສິດເອກະສານເດີມຈາກ library ບໍ່ໄດ້ຮັບເພີ່ມຈາກການເຊີນ; ເອກະສານທີ່ອັບໂຫຼດໃນ Task ໃຊ້ສິດຕາມ Task ຕາມຂໍ້ກຳນົດໃໝ່ຂ້າງເທິງ.
 - ການເຊີນຈາກ comment ໃຊ້ resource row lock, ເພີ່ມ revision, ບັນທຶກ `team_invited`, ແລະອອກ notification outbox. ຖ້າ mention ບໍ່ຖືກຕ້ອງ ໃຫ້ rollback ທັງ comment/team/history/grants.
 - ບໍ່ backfill ສິດຈາກ assignments ຫຼື mentions ເກົ່າ. ສຳລັບວຽກເກົ່າ Host ປັບທີມເພື່ອເຊີນໃໝ່. ການ @tag ຂອງ resource ປະເພດອື່ນຍັງເປັນການແຈ້ງ, ບໍ່ແບ່ງປັນສິດ.
 

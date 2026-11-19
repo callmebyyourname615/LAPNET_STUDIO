@@ -157,11 +157,12 @@ export async function getApiVersion(signal?: AbortSignal) {
 export async function uploadFile(
   path: string,
   file: File,
-  options?: { metadata?: unknown; note?: string; signal?: AbortSignal },
+  options?: { metadata?: unknown; note?: string; title?: string; signal?: AbortSignal },
 ) {
   const accountImage = /^\/api\/v1\/me\/images\/(avatar|cover)$/.test(path);
   if (
     !/^\/api\/v1\/documents\/[a-f0-9-]+\/versions$/.test(path) &&
+    !/^\/api\/v1\/tasks\/[a-f0-9-]+\/documents$/.test(path) &&
     path !== "/api/v1/document-workspace/register" &&
     !accountImage
   )
@@ -178,6 +179,7 @@ export async function uploadFile(
         "X-CSRF-Token": csrfToken,
         "X-File-Name": encodeURIComponent(file.name),
         "X-File-Type": file.type,
+        ...(options?.title ? { "X-Document-Title": encodeURIComponent(options.title) } : {}),
         ...(options?.metadata
           ? { "X-Document-Metadata": encodeURIComponent(JSON.stringify(options.metadata)) }
           : {}),

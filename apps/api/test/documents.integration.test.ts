@@ -6,6 +6,8 @@ import { mkdtemp, writeFile, readdir, rm, stat, utimes } from "node:fs/promises"
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { crc32 } from "node:zlib";
+import { watch } from "node:fs";
+import { request as httpRequest, type ClientRequest } from "node:http";
 import { createDatabase } from "@lapnet/database";
 import {
   workspaceDocumentDetailSchema,
@@ -886,6 +888,186 @@ test(
             ).size > 0,
           );
           await assert.rejects(db.businessRevision.deleteMany({ where: { recordId: id } }));
+        },
+      );
+      await t.test(
+        "Task viewers upload scoped documents with atomic history and inherited access",
+        async () => {
+          const task = await request(oc, "/api/v1/tasks", "POST", {
+            title: "Open task uploads",
+            description: "",
+            priority: "normal",
+            dueDate: null,
+            departmentId: finance,
+            assigneeId: owner.id,
+            collaboratorIds: [colleague.id],
+          });
+          assert.equal(task.status, 201);
+          const taskId = task.value.id,
+            path = `/api/v1/tasks/${taskId}/documents`;
+          await request(oc, `/api/v1/resources/${taskId}/grants`, "POST", {
+            userId: outsider.id,
+            permission: "view",
+          });
+          assert.equal(
+            (await upload(anonymous, path, Buffer.from("file"), "anonymous.txt")).status,
+            401,
+          );
+          assert.equal(
+            (await upload(cc, path, Buffer.from("file"), "csrf.txt", undefined, false)).status,
+            403,
+          );
+          assert.equal((await upload(ac, path, Buffer.from("file"), "admin.txt")).status, 404);
+          const before = await db.resource.count();
+          assert.equal((await upload(cc, path, Buffer.from("invalid PDF"), "bad.pdf")).status, 400);
+          assert.equal(await db.resource.count(), before);
+          const posted = await upload(
+            xc,
+            path,
+            Buffer.from("Task-scoped document bytes"),
+            "team-upload.txt",
+          );
+          assert.equal(posted.status, 201);
+          const documentId = posted.value.id,
+            versionId = posted.value.version.id;
+          const row = await db.businessRecord.findUniqueOrThrow({ where: { id: documentId } });
+          assert.equal(row.parentId, taskId);
+          assert.equal(row.revision, 1);
+          assert.equal(await db.businessRevision.count({ where: { recordId: documentId } }), 1);
+          const timeline = taskDocumentsSchema.parse((await request(oc, path)).value);
+          assert.equal(timeline.items[0].id, documentId);
+          assert.equal(timeline.activity.length, 1);
+          assert.equal(timeline.activity[0].actorName, outsider.displayName);
+          assert.equal(timeline.activity[0].filename, "team-upload.txt");
+          assert.equal(timeline.activity[0].state, "quarantined");
+          assert.equal(timeline.activity[0].documentId, documentId);
+          for (const client of [oc, cc, xc]) {
+            const library = workspaceDocumentPageSchema.parse(
+              (await request(client, base + "/documents?q=team-upload")).value,
+            );
+            assert.equal(library.items[0].id, documentId);
+            assert.equal(library.items[0].permissions.download, true);
+            assert.equal(library.items[0].permissions.manageAccess, false);
+          }
+          assert.equal((await request(ac, base + "/documents/" + documentId)).status, 404);
+          assert.equal(
+            (await request(ac, `/api/v1/document-versions/${versionId}/download`)).status,
+            404,
+          );
+          await app.get(FilesService).process(versionId);
+          const downloaded = await request(cc, `/api/v1/document-versions/${versionId}/download`);
+          assert.equal(downloaded.status, 200);
+          assert.equal(downloaded.value, "Task-scoped document bytes");
+          const newViewer = await request(oc, `/api/v1/resources/${taskId}/grants`, "POST", {
+            userId: admin.id,
+            permission: "view",
+          });
+          assert.equal((await request(ac, base + "/documents/" + documentId)).status, 200);
+          await request(oc, `/api/v1/resources/${taskId}/grants/${newViewer.value.id}`, "DELETE");
+          assert.equal((await request(ac, base + "/documents/" + documentId)).status, 404);
+          assert.equal(
+            (
+              await upload(
+                cc,
+                `/api/v1/documents/${documentId}/versions`,
+                Buffer.from("Team second version"),
+                "team-update.txt",
+              )
+            ).status,
+            201,
+          );
+          const updated = taskDocumentsSchema.parse((await request(oc, path)).value);
+          assert.equal(updated.activity[0].actorName, colleague.displayName);
+          assert.equal(updated.activity[0].version, 2);
+          assert.equal(
+            (
+              await request(xc, base + `/documents/${documentId}/grants`, "POST", {
+                userId: admin.id,
+                permission: "view",
+              })
+            ).status,
+            403,
+          );
+          const grants = (await request(oc, `/api/v1/resources/${taskId}/grants`)).value;
+          const view = grants.find(
+            (grant: { userId: string; permission: string }) =>
+              grant.userId === outsider.id && grant.permission === "view",
+          );
+          await request(oc, `/api/v1/resources/${taskId}/grants/${view.id}`, "DELETE");
+          assert.equal((await request(xc, base + "/documents/" + documentId)).status, 404);
+          assert.equal(
+            (await request(xc, `/api/v1/document-versions/${versionId}/download`)).status,
+            404,
+          );
+          assert.equal(
+            workspaceDocumentPageSchema.parse(
+              (await request(xc, base + "/documents?q=team-upload")).value,
+            ).total,
+            0,
+          );
+          assert.equal(
+            (await upload(xc, path, Buffer.from("Revoked upload"), "revoked.txt")).status,
+            404,
+          );
+          const temporary = await request(oc, `/api/v1/resources/${taskId}/grants`, "POST", {
+            userId: outsider.id,
+            permission: "view",
+          });
+          const count = await db.resource.count(),
+            incoming = await readdir(join(storage, "incoming")),
+            quarantined = await readdir(join(storage, "quarantine"));
+          let stream!: ClientRequest;
+          const started = new Promise<void>((resolve, reject) => {
+            const timeout = setTimeout(() => {
+              observer.close();
+              reject(new Error("Upload did not start"));
+            }, 5000);
+            const observer = watch(join(storage, "incoming"), () => {
+              clearTimeout(timeout);
+              observer.close();
+              resolve();
+            });
+          });
+          const prefix = Buffer.from("Stream began while authorized\n"),
+            tail = Buffer.from("Final bytes after revocation");
+          const pendingUpload = new Promise<number>((resolve, reject) => {
+            stream = httpRequest(
+              origin + path,
+              {
+                method: "POST",
+                headers: {
+                  origin: process.env.APP_ORIGIN!,
+                  cookie: xc.cookie,
+                  "x-csrf-token": xc.csrf,
+                  "content-type": "application/octet-stream",
+                  "x-file-name": "racing-upload.txt",
+                  "content-length": prefix.length + tail.length,
+                },
+              },
+              (response) => {
+                response.resume();
+                response.on("end", () => resolve(response.statusCode!));
+              },
+            );
+            stream.on("error", reject);
+            stream.write(prefix);
+          });
+          await started;
+          await request(oc, `/api/v1/resources/${taskId}/grants/${temporary.value.id}`, "DELETE");
+          stream.end(tail);
+          assert.equal(await pendingUpload, 404);
+          assert.equal(await db.resource.count(), count);
+          assert.deepEqual(await readdir(join(storage, "incoming")), incoming);
+          assert.deepEqual(await readdir(join(storage, "quarantine")), quarantined);
+          assert.equal(
+            (
+              await request(oc, `/api/v1/tasks/${taskId}/archive`, "POST", {
+                revision: task.value.revision,
+              })
+            ).status,
+            201,
+          );
+          assert.equal((await request(oc, base + "/documents/" + documentId)).status, 404);
         },
       );
       await t.test("PDF preview retains authenticated file boundaries", async () => {

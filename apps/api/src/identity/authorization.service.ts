@@ -67,6 +67,37 @@ export class AuthorizationService {
     context: Awaited<ReturnType<AuthorizationService["context"]>>,
     permission: Permission = "view",
   ): Prisma.ResourceWhereInput {
+    const attachment: Prisma.ResourceWhereInput = {
+      kind: "document",
+      business: { is: { parent: { is: { kind: "task" } } } },
+    };
+    const inherited: Prisma.ResourceWhereInput =
+      permission === "manage_access"
+        ? { id: { in: [] } }
+        : {
+            kind: "document",
+            business: {
+              is: {
+                parent: {
+                  is: {
+                    kind: "task",
+                    AND: [
+                      this.directWhere(context, permission === "download" ? "view" : permission),
+                    ],
+                  },
+                },
+              },
+            },
+          };
+    return {
+      archivedAt: null,
+      OR: [{ NOT: attachment, AND: [this.directWhere(context, permission)] }, inherited],
+    };
+  }
+  private directWhere(
+    context: Awaited<ReturnType<AuthorizationService["context"]>>,
+    permission: Permission,
+  ): Prisma.ResourceWhereInput {
     const subjects: Prisma.ResourceGrantWhereInput[] = [
       { userId: context.userId },
       { departmentId: { in: context.departments } },
@@ -96,7 +127,7 @@ export class AuthorizationService {
     };
     return {
       archivedAt: null,
-      AND: permission === "view" ? [action] : [this.where(context), action],
+      AND: permission === "view" ? [action] : [this.directWhere(context, "view"), action],
     };
   }
   async requireResource(

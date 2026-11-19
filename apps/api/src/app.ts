@@ -46,6 +46,7 @@ import { AuthController, IdentityController, ResourcesController } from "./ident
 import { readConfig } from "./config";
 import { TasksController } from "./tasks/controller";
 import { TasksService } from "./tasks/tasks.service";
+import { TaskDocumentsService } from "./tasks/documents.service";
 
 @ApiTags("Foundation")
 @Controller("health")
@@ -116,6 +117,7 @@ class VersionController {
     OrganizationService,
     ResourcesService,
     TasksService,
+    TaskDocumentsService,
     BusinessService,
     DiscoveryService,
     FilesService,

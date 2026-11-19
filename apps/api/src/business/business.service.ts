@@ -103,7 +103,12 @@ export class BusinessService {
       },
       OR: [
         { parentId: null, resource: this.authorization.where(context, permission) },
-        { parentId: { not: null }, parent: this.authorization.where(context, permission) },
+        { resource: { kind: "document", AND: [this.authorization.where(context, permission)] } },
+        {
+          parentId: { not: null },
+          resource: { kind: { not: "document" } },
+          parent: this.authorization.where(context, permission),
+        },
       ],
     };
   }
@@ -115,10 +120,21 @@ export class BusinessService {
   ) {
     const row = await tx.businessRecord.findUnique({
       where: { id },
-      select: { parentId: true, resource: { select: { archivedAt: true } } },
+      select: { parentId: true, resource: { select: { archivedAt: true, kind: true } } },
     });
     if (row?.resource.archivedAt) throw new NotFoundException();
-    return this.authorization.requireResource(actor, row?.parentId ?? id, permission, tx);
+    if (
+      row?.resource.kind === "document" &&
+      row.parentId &&
+      !["view", "download"].includes(permission)
+    )
+      await tx.$queryRaw`SELECT id FROM resources WHERE id=${row.parentId}::uuid FOR UPDATE`;
+    return this.authorization.requireResource(
+      actor,
+      row?.resource.kind === "document" ? id : (row?.parentId ?? id),
+      permission,
+      tx,
+    );
   }
   private parse(kind: BusinessKind, data: Record<string, unknown>) {
     const parsed = schemas[kind].safeParse(data);
@@ -127,7 +143,7 @@ export class BusinessService {
   }
   async serialize(actor: string, row: Row, tx: Transaction) {
     const c = await this.authorization.context(actor, tx),
-      id = row.parentId ?? row.id;
+      id = row.resource.kind === "document" ? row.id : (row.parentId ?? row.id);
     const rights: Record<string, boolean> = { view: true };
     for (const permission of ["edit", "comment", "manage_access", "download"] as const)
       rights[permission] = !!(await tx.resource.findFirst({
@@ -879,6 +895,7 @@ export class BusinessService {
           select: {
             id: true,
             title: true,
+            parentId: true,
             resource: {
               select: {
                 sourceLinks: { where: { targetId: id }, select: linkFields },
@@ -894,6 +911,8 @@ export class BusinessService {
                 createdAt: true,
                 filename: true,
                 uploadedById: true,
+                bytes: true,
+                state: true,
               },
             },
           },
@@ -946,7 +965,10 @@ export class BusinessService {
         );
         const names = new Map(uploaders.map((user) => [user.id, user.displayName]));
         const activity = documents.flatMap((document) => [
-          ...[...document.resource.sourceLinks, ...document.resource.targetLinks].map((link) => ({
+          ...(document.parentId === id
+            ? []
+            : [...document.resource.sourceLinks, ...document.resource.targetLinks]
+          ).map((link) => ({
             id: link.id,
             kind: "linked",
             title: document.title,
@@ -957,6 +979,10 @@ export class BusinessService {
               null,
             occurredAt: link.createdAt.toISOString(),
             version: null,
+            documentId: document.id,
+            href: this.href("document", document.id),
+            state: null,
+            bytes: null,
           })),
           ...document.versions.map((version) => ({
             id: version.id,
@@ -966,6 +992,10 @@ export class BusinessService {
             actorName: names.get(version.uploadedById ?? "") ?? null,
             occurredAt: version.createdAt.toISOString(),
             version: version.number,
+            documentId: document.id,
+            href: this.href("document", document.id),
+            state: version.state,
+            bytes: version.bytes,
           })),
         ]);
         activity.sort(
