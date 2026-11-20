@@ -3097,6 +3097,78 @@
         ]
       }
     },
+    "/api/v1/resources/{id}/comments/{commentId}/profile": {
+      "get": {
+        "operationId": "BusinessController_commentProfile",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "commentId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "cookie": []
+          }
+        ],
+        "tags": [
+          "Business records"
+        ]
+      }
+    },
+    "/api/v1/resources/{id}/comments/{commentId}/cover": {
+      "get": {
+        "operationId": "BusinessController_commentCover",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "commentId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "cookie": []
+          }
+        ],
+        "tags": [
+          "Business records"
+        ]
+      }
+    },
     "/api/v1/resources/{id}/comments": {
       "get": {
         "operationId": "BusinessController_comments",

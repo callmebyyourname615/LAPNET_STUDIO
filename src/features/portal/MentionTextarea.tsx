@@ -1,4 +1,4 @@
-import { useEffect, useId, useRef, useState } from "react";
+import { useEffect, useId, useImperativeHandle, useRef, useState, type Ref } from "react";
 import * as Popover from "@radix-ui/react-popover";
 import { Building2, UserRound, X } from "lucide-react";
 import { apiRequest } from "@/lib/api";
@@ -21,6 +21,8 @@ type Targets = {
   users: { id: string; displayName: string }[];
   departments: { id: string; name: string }[];
 };
+export type MentionTextareaHandle = { mention: (person: SelectedMention) => void };
+
 export function MentionTextarea({
   resourceId,
   label,
@@ -28,6 +30,7 @@ export function MentionTextarea({
   onChange,
   onMentionsChange,
   canInvite,
+  ref,
 }: {
   resourceId: string;
   label: string;
@@ -35,6 +38,7 @@ export function MentionTextarea({
   onChange: (text: string) => void;
   onMentionsChange: (mentions: SelectedMention[]) => void;
   canInvite: boolean;
+  ref?: Ref<MentionTextareaHandle>;
 }) {
   const id = useId(),
     input = useRef<HTMLTextAreaElement>(null),
@@ -137,8 +141,10 @@ export function MentionTextarea({
     onMentionsChange(selectedMentions(next.tokens));
     setValidation("");
   }
-  function choose(person: SelectedMention) {
-    if (!active || input.current?.matches(":disabled")) return;
+  function choose(person: SelectedMention, append = false) {
+    const text = append && /\S$/u.test(value) ? value + " " : value;
+    const query = append ? { start: text.length, end: text.length, query: "" } : active;
+    if (!query || !input.current || input.current.matches(":disabled")) return;
     if (
       selected.length >= 25 &&
       !selected.some((item) => item.type === person.type && item.id === person.id)
@@ -146,7 +152,7 @@ export function MentionTextarea({
       setValidation("ກ່າວເຖິງໄດ້ສູງສຸດ 25 ລາຍການ.");
       return;
     }
-    const next = insertMention(value, tokens, active, person);
+    const next = insertMention(text, tokens, query, person);
     if (!next) {
       setValidation("ຂໍ້ຄວາມຕ້ອງບໍ່ເກີນ 4,000 ຕົວອັກສອນ.");
       return;
@@ -157,8 +163,10 @@ export function MentionTextarea({
     requestAnimationFrame(() => {
       input.current?.focus({ preventScroll: true });
       input.current?.setSelectionRange(next.caret, next.caret);
+      if (append) input.current?.scrollIntoView({ block: "nearest" });
     });
   }
+  useImperativeHandle(ref, () => ({ mention: (person) => choose(person, true) }));
   return (
     <Popover.Root
       open={open}

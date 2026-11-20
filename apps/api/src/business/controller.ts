@@ -89,8 +89,24 @@ export class BusinessController {
     @Param("commentId", ParseUUIDPipe) commentId: string,
     @Res() response: Response,
   ) {
-    const author = await this.business.commentAvatarAuthor(r.principal!.user.id, id, commentId);
+    const author = await this.business.commentAuthor(r.principal!.user.id, id, commentId);
     return this.images.get(author, "avatar", response);
+  }
+  @Get("resources/:id/comments/:commentId/profile") commentProfile(
+    @Req() r: PortalRequest,
+    @Param("id", ParseUUIDPipe) id: string,
+    @Param("commentId", ParseUUIDPipe) commentId: string,
+  ) {
+    return this.business.taskCommentProfile(r.principal!.user.id, id, commentId);
+  }
+  @Get("resources/:id/comments/:commentId/cover") async commentCover(
+    @Req() r: PortalRequest,
+    @Param("id", ParseUUIDPipe) id: string,
+    @Param("commentId", ParseUUIDPipe) commentId: string,
+    @Res() response: Response,
+  ) {
+    const author = await this.business.commentAuthor(r.principal!.user.id, id, commentId, true);
+    return this.images.get(author, "cover", response);
   }
   @Get("resources/:id/comments") comments(
     @Req() r: PortalRequest,

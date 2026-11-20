@@ -18,6 +18,7 @@ const ConnectedTasks=lazy(()=>import('./features/tasks/Tasks').then(module=>({de
 const TaskDashboard=lazy(()=>import('./features/tasks/Tasks').then(module=>({default:module.TaskDashboard})));
 const IdentityAdmin=lazy(()=>import('./features/identity/Admin').then(module=>({default:module.IdentityAdmin})));
 const SettingsPage=lazy(()=>import('./features/identity/Settings'));
+const TaskMemberProfile=lazy(()=>import('./features/identity/Settings').then(m=>({default:m.TaskMemberProfile})));
 const AuditLogs=lazy(()=>import('./features/identity/AuditLogs'));
 const DocumentWorkspace=lazy(()=>import('./features/document-workspace/Workspace'));
 
@@ -1846,6 +1847,8 @@ function Portal() {
   const title = path==='/admin/audit'?'ປະຫວັດການໃຊ້ງານ':path==='/settings'?'ຕັ້ງຄ່າ':path==='/search'?'Search':path==='/account'?'ບັນຊີຂອງຂ້ອຍ':path.startsWith('/tasks')?'Tasks':path.startsWith('/documents')?'Documents':path.startsWith('/companies')?'Companies':path.startsWith('/feed')?'Work Feed':path.startsWith('/notifications')?'Notifications':path.startsWith('/admin')?'Administration':'Dashboard';
   const taskId=path.match(/^\/tasks\/([^/]+)/)?.[1];
   const content=useMemo(()=>{
+    const profile=path.match(/^\/tasks\/([0-9a-f-]+)\/comments\/([0-9a-f-]+)\/profile$/i);
+    if(profile)return <TaskMemberProfile taskId={profile[1]} commentId={profile[2]} go={go}/>;
     if(path.startsWith('/tasks'))return <ConnectedTasks key={path+'?'+query} id={taskId} query={query} go={go}/>;
     if(path==='/dashboard'||path==='/sign-in'||path==='/')return <TaskDashboard go={go}/>;
     if(path==='/account')return <PasswordChange/>;

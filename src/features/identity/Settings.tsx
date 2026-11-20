@@ -1,8 +1,9 @@
 /* Hallmark · personal portfolio and account settings · pre-emit critique: P5 H5 E5 S5 R5 V4 */
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type ReactNode, type Ref } from "react";
 import gsap from "gsap";
 import { useGSAP } from "@gsap/react";
 import {
+  ArrowLeft,
   ArrowUpRight,
   Building2,
   Camera,
@@ -12,7 +13,9 @@ import {
   Trash2,
   UserRound,
 } from "lucide-react";
-import { accountImageLimits } from "@lapnet/contracts";
+import { accountImageLimits, taskCommentProfileSchema } from "@lapnet/contracts";
+import { useTaskData } from "../tasks/api";
+import { t } from "@/i18n/lo";
 import { apiRequest, uploadFile } from "@/lib/api";
 import { AccountAvatar } from "@/components/ui/account-avatar";
 import { ImageStudio } from "@/components/ui/image-studio";
@@ -23,6 +26,93 @@ import "./settings.css";
 gsap.registerPlugin(useGSAP);
 type Section = "overview" | "profile" | "security";
 type ImageKind = "avatar" | "cover";
+
+function SettingsCover({
+  src,
+  ref,
+  children,
+}: {
+  src?: string | null;
+  ref?: Ref<HTMLDivElement>;
+  children?: ReactNode;
+}) {
+  return (
+    <div className="settings-cover" ref={ref}>
+      {src ? (
+        <img className="settings-cover-image" src={src} alt="" />
+      ) : (
+        <>
+          <span aria-hidden="true" />
+          <span aria-hidden="true" />
+          <span aria-hidden="true" />
+        </>
+      )}
+      {children}
+    </div>
+  );
+}
+
+export function TaskMemberProfile({
+  taskId,
+  commentId,
+  go,
+}: {
+  taskId: string;
+  commentId: string;
+  go: (path: string) => void;
+}) {
+  const { data, error, loading, reload } = useTaskData(
+    `/api/v1/resources/${taskId}/comments/${commentId}/profile`,
+    taskCommentProfileSchema,
+  );
+  return (
+    <div className="settings-page">
+      <button
+        className="back-link"
+        type="button"
+        onClick={() => go(`/tasks/${taskId}?tab=comments`)}
+      >
+        <ArrowLeft size={16} aria-hidden="true" /> ກັບໄປຄວາມຄິດເຫັນ
+      </button>
+      {loading && <Skeleton variant="detail" />}
+      {error && (
+        <section className="panel">
+          <p role="alert">{error}</p>
+          <button className="button secondary" type="button" onClick={reload}>
+            ລອງໃໝ່
+          </button>
+        </section>
+      )}
+      {data && (
+        <>
+          <SettingsCover src={data.coverUrl} />
+          <div className="settings-layout">
+            <aside className="settings-profile" aria-label={data.displayName}>
+              <div className="settings-avatar">
+                <AccountAvatar className="settings-avatar-content" person={data} />
+              </div>
+              <div className="settings-profile-heading">
+                <h2>{data.displayName}</h2>
+              </div>
+            </aside>
+            <section className="settings-content" aria-labelledby="task-member-profile-title">
+              <header className="settings-heading">
+                <h1 id="task-member-profile-title">ໂປຣໄຟລ໌</h1>
+              </header>
+              <article className="settings-card">
+                <div className="settings-personal-heading">
+                  <h2>ພະແນກ</h2>
+                  <Building2 size={17} aria-hidden="true" />
+                </div>
+                <p>{data.departments.map(t).join(" · ") || "—"}</p>
+              </article>
+            </section>
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
 
 export default function SettingsPage() {
   const { me, refresh } = useAuth();
@@ -174,16 +264,7 @@ export default function SettingsPage() {
           onSave={(file) => imageAction(studio.kind, file)}
         />
       )}
-      <div className="settings-cover" ref={cover}>
-        {me!.user.coverUrl ? (
-          <img className="settings-cover-image" src={me!.user.coverUrl} alt="" />
-        ) : (
-          <>
-            <span aria-hidden="true" />
-            <span aria-hidden="true" />
-            <span aria-hidden="true" />
-          </>
-        )}
+      <SettingsCover src={me!.user.coverUrl} ref={cover}>
         <div className="settings-cover-actions">
           {me!.user.coverUrl && (
             <button
@@ -205,7 +286,7 @@ export default function SettingsPage() {
             {imageBusy === "cover" && <Skeleton variant="inline" label={text.saving} />}
           </button>
         </div>
-      </div>
+      </SettingsCover>
       <div className="settings-layout">
         <aside className="settings-profile" aria-label={text.title}>
           <div className="settings-avatar">

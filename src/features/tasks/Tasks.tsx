@@ -86,7 +86,14 @@ export function ConnectedTasks({ id, query, go }: Navigation & { id?: string; qu
         />
       </>
     );
-  if (id) return <TaskDetail id={id} go={go} />;
+  if (id)
+    return (
+      <TaskDetail
+        id={id}
+        go={go}
+        initialTab={new URLSearchParams(query).get("tab") === "comments" ? "comments" : "overview"}
+      />
+    );
   return <TaskList query={query} go={go} />;
 }
 function TaskList({ query, go }: Navigation & { query: string }) {
@@ -304,17 +311,23 @@ const detailTabs = [
 ] as const;
 type DetailTab = (typeof detailTabs)[number]["id"];
 
-function TaskDetail({ id, go }: Navigation & { id: string }) {
+function TaskDetail({ id, go, initialTab }: Navigation & { id: string; initialTab: DetailTab }) {
   const { data: task, error, loading, reload } = useTaskData("/api/v1/tasks/" + id, taskSchema);
   const [editing, setEditing] = useState(false),
     [busy, setBusy] = useState(false),
     [failure, setFailure] = useState(""),
     [status, setStatus] = useState<TaskStatus>("todo"),
     [reason, setReason] = useState(""),
-    [tab, setTab] = useState<DetailTab>("overview"),
+    [tab, setTab] = useState<DetailTab>(initialTab),
     [statusOpen, setStatusOpen] = useState(false),
     [documentPicker, setDocumentPicker] = useState(0),
+    [refreshKey, setRefreshKey] = useState(0),
     [archiveConfirm, setArchiveConfirm] = useState(false);
+  function refreshWorkspace() {
+    reload();
+    setRefreshKey((key) => key + 1);
+  }
+  const viewProfile = (commentId: string) => go(`/tasks/${id}/comments/${commentId}/profile`);
   function selectTab(next: DetailTab, focus = false) {
     setTab(next);
     setDocumentPicker(0);
@@ -343,7 +356,7 @@ function TaskDetail({ id, go }: Navigation & { id: string }) {
       });
       setReason("");
       setStatusOpen(false);
-      reload();
+      refreshWorkspace();
     } catch (e) {
       setFailure(errorText(e));
       if (e instanceof ApiError && [401, 403, 404].includes(e.status)) reload();
@@ -420,7 +433,7 @@ function TaskDetail({ id, go }: Navigation & { id: string }) {
                     className="button ghost task-reload"
                     type="button"
                     aria-label="ໂຫຼດໃໝ່"
-                    onClick={reload}
+                    onClick={refreshWorkspace}
                   >
                     <RefreshCw size={16} aria-hidden="true" />
                   </button>
@@ -555,6 +568,14 @@ function TaskDetail({ id, go }: Navigation & { id: string }) {
                 >
                   {tab === panel && panel === "overview" && (
                     <>
+                      {task.description.trim() && (
+                        <section className="task-workspace-section">
+                          <div className="task-section-heading">
+                            <h2>ລາຍລະອຽດວຽກ</h2>
+                          </div>
+                          <p className="task-description">{task.description}</p>
+                        </section>
+                      )}
                       <section className="task-workspace-section">
                         <div className="task-section-heading">
                           <h2>ທີມຮ່ວມວຽກ</h2>
@@ -589,13 +610,20 @@ function TaskDetail({ id, go }: Navigation & { id: string }) {
                         edit={false}
                         go={go}
                         preview
+                        refreshKey={refreshKey}
                         onOpen={() => selectTab("documents", true)}
                       />
-                      <TaskHistoryPanel id={id} onOpen={() => selectTab("activity", true)} />
+                      <TaskHistoryPanel
+                        id={id}
+                        refreshKey={refreshKey}
+                        onOpen={() => selectTab("activity", true)}
+                      />
                       <Comments
                         id={id}
                         canComment={false}
                         taskStyle
+                        refreshKey={refreshKey}
+                        onViewProfile={viewProfile}
                         onOpen={() => selectTab("comments", true)}
                       />
                       <details className="task-workspace-settings">
@@ -642,10 +670,6 @@ function TaskDetail({ id, go }: Navigation & { id: string }) {
                               <dt>ແກ້ໄຂຫຼ້າສຸດ</dt>
                               <dd>{formatLaoTimestamp(task.updatedAt)}</dd>
                             </dl>
-                            <div className="task-detail-description">
-                              <h3>ລາຍລະອຽດ</h3>
-                              <p className="task-description">{task.description || "ບໍ່ມີລາຍລະອຽດ"}</p>
-                            </div>
                           </section>
                           {task.permissions.manageAccess && (
                             <TaskSharing id={id} onChanged={reload} />
@@ -687,13 +711,16 @@ function TaskDetail({ id, go }: Navigation & { id: string }) {
                       </details>
                     </>
                   )}
-                  {tab === panel && panel === "activity" && <TaskHistoryPanel id={id} />}
+                  {tab === panel && panel === "activity" && (
+                    <TaskHistoryPanel id={id} refreshKey={refreshKey} />
+                  )}
                   {tab === panel && panel === "documents" && (
                     <TaskDocuments
                       key={documentPicker}
                       id={id}
                       edit={task.permissions.edit}
                       go={go}
+                      refreshKey={refreshKey}
                       startAdding={documentPicker > 0}
                     />
                   )}
@@ -703,6 +730,8 @@ function TaskDetail({ id, go }: Navigation & { id: string }) {
                       canComment={task.permissions.comment}
                       canInvite={task.permissions.manageTeam}
                       onChanged={reload}
+                      refreshKey={refreshKey}
+                      onViewProfile={viewProfile}
                       taskStyle
                     />
                   )}
@@ -723,11 +752,20 @@ const historyIcons: Record<string, LucideIcon> = {
   archived: Archive,
 };
 
-function TaskHistoryPanel({ id, onOpen }: { id: string; onOpen?: () => void }) {
+function TaskHistoryPanel({
+  id,
+  refreshKey,
+  onOpen,
+}: {
+  id: string;
+  refreshKey: number;
+  onOpen?: () => void;
+}) {
   const [cursors, setCursors] = useState<number[]>([]);
   const { data, error, loading, reload } = useTaskData(
     `/api/v1/tasks/${id}/history?limit=${onOpen ? 3 : 10}${cursors.length ? "&before=" + cursors.at(-1) : ""}`,
     taskHistorySchema,
+    refreshKey,
   );
   const events =
     data?.items.map((event) => {

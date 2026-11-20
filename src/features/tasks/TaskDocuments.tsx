@@ -16,6 +16,7 @@ export function TaskDocuments({
   preview = false,
   startAdding = false,
   onOpen,
+  refreshKey,
 }: {
   id: string;
   edit: boolean;
@@ -23,11 +24,13 @@ export function TaskDocuments({
   preview?: boolean;
   startAdding?: boolean;
   onOpen?: () => void;
+  refreshKey?: number;
 }) {
   const path = `/api/v1/resources/${id}/links`;
   const { data, error, loading, reload } = useTaskData(
     `/api/v1/tasks/${id}/documents`,
     taskDocumentsSchema,
+    refreshKey,
   );
   const [adding, setAdding] = useState(startAdding);
   const [target, setTarget] = useState("");

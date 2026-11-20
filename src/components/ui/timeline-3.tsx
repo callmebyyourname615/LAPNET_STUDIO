@@ -1,5 +1,6 @@
-import type { ReactNode } from "react";
-import { MessageCircle } from "lucide-react";
+import { useId, useRef, useState, type ReactNode } from "react";
+import * as Popover from "@radix-ui/react-popover";
+import { AtSign, MessageCircle, UserRound } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "./avatar";
 import { Badge } from "./badge";
 import { Marker, MarkerContent } from "./timeline-3-utils/marker";
@@ -13,6 +14,7 @@ export type Timeline3Item = {
   edited?: boolean;
   meta?: ReactNode;
   content: ReactNode;
+  profile?: { onView: () => void; onMention?: () => void };
 };
 const zone = "Asia/Vientiane";
 const day = new Intl.DateTimeFormat("en-CA", {
@@ -33,6 +35,146 @@ const time = new Intl.DateTimeFormat("lo-LA", {
   hour: "2-digit",
   minute: "2-digit",
 });
+
+function AuthorAvatar({ item }: { item: Timeline3Item }) {
+  return (
+    <Avatar className="size-9 border border-border">
+      <AvatarImage src={item.avatar} alt="" />
+      <AvatarFallback>
+        {item.actor
+          .trim()
+          .split(/\s+/)
+          .slice(0, 2)
+          .map((part) => Array.from(part)[0])
+          .join("")
+          .toUpperCase()}
+      </AvatarFallback>
+    </Avatar>
+  );
+}
+
+function TimelineEntry({ item }: { item: Timeline3Item }) {
+  const [open, setOpen] = useState(false);
+  const trigger = useRef<HTMLButtonElement>(null);
+  const nameTrigger = useRef<HTMLButtonElement>(null);
+  const restoreFocus = useRef(true);
+  const menuId = useId();
+  function changeOpen(next: boolean) {
+    if (next) restoreFocus.current = true;
+    setOpen(next);
+  }
+  const avatar = (
+    <>
+      <AuthorAvatar item={item} />
+      <span className="timeline-three-icon">
+        <MessageCircle size={10} aria-hidden="true" />
+      </span>
+    </>
+  );
+  return (
+    <li className="timeline-three-item">
+      <Popover.Root open={open} onOpenChange={changeOpen}>
+        {item.profile ? (
+          <Popover.Trigger asChild>
+            <button
+              type="button"
+              className="timeline-three-avatar timeline-author-trigger"
+              aria-label={`ເມນູໂປຣໄຟລ໌ ${item.actor}`}
+              aria-controls={open ? menuId : undefined}
+              onClick={(event) => (trigger.current = event.currentTarget)}
+            >
+              {avatar}
+            </button>
+          </Popover.Trigger>
+        ) : (
+          <span className="timeline-three-avatar">{avatar}</span>
+        )}
+        <div className="timeline-three-content">
+          <div className="timeline-three-byline">
+            <div>
+              {item.profile ? (
+                <button
+                  ref={nameTrigger}
+                  type="button"
+                  className="timeline-author-trigger timeline-author-name"
+                  aria-haspopup="dialog"
+                  aria-expanded={open}
+                  aria-controls={open ? menuId : undefined}
+                  onClick={(event) => {
+                    trigger.current = event.currentTarget;
+                    changeOpen(!open);
+                  }}
+                >
+                  <strong>{item.actor}</strong>
+                </button>
+              ) : (
+                <strong>{item.actor}</strong>
+              )}
+              {item.meta && <small>{item.meta}</small>}
+            </div>
+            <time
+              dateTime={item.createdAt}
+              title={
+                date.format(new Date(item.createdAt)) + " " + time.format(new Date(item.createdAt))
+              }
+            >
+              {time.format(new Date(item.createdAt))}
+              {item.edited ? " · ແກ້ໄຂແລ້ວ" : ""}
+            </time>
+          </div>
+          <div className="timeline-three-body">{item.content}</div>
+        </div>
+        {item.profile && (
+          <Popover.Portal>
+            <Popover.Content
+              id={menuId}
+              className="timeline-author-menu"
+              align="start"
+              sideOffset={8}
+              collisionPadding={12}
+              aria-label={`ໂປຣໄຟລ໌ ${item.actor}`}
+              onInteractOutside={(event) => {
+                if (nameTrigger.current?.contains(event.target as Node)) event.preventDefault();
+                else restoreFocus.current = false;
+              }}
+              onCloseAutoFocus={(event) => {
+                event.preventDefault();
+                if (restoreFocus.current) trigger.current?.focus({ preventScroll: true });
+              }}
+            >
+              <div className="timeline-author-summary">
+                <AuthorAvatar item={item} />
+                <strong>{item.actor}</strong>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  restoreFocus.current = false;
+                  setOpen(false);
+                  item.profile?.onView();
+                }}
+              >
+                <UserRound size={16} aria-hidden="true" /> View Profile
+              </button>
+              {item.profile.onMention && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    restoreFocus.current = false;
+                    setOpen(false);
+                    item.profile?.onMention?.();
+                  }}
+                >
+                  <AtSign size={16} aria-hidden="true" /> ກ່າວເຖິງໃນວຽກນີ້
+                </button>
+              )}
+            </Popover.Content>
+          </Popover.Portal>
+        )}
+      </Popover.Root>
+    </li>
+  );
+}
 
 /** The supplied timeline layout, rendered with real comments instead of demonstration events. */
 export default function Timeline3({
@@ -70,45 +212,7 @@ export default function Timeline3({
           </Marker>
           <ol className="timeline-three-list">
             {group.items.map((item) => (
-              <li key={item.id} className="timeline-three-item">
-                <span className="timeline-three-avatar">
-                  <Avatar className="size-9 border border-border">
-                    <AvatarImage src={item.avatar} alt="" />
-                    <AvatarFallback>
-                      {item.actor
-                        .trim()
-                        .split(/\s+/)
-                        .slice(0, 2)
-                        .map((s) => Array.from(s)[0])
-                        .join("")
-                        .toUpperCase()}
-                    </AvatarFallback>
-                  </Avatar>
-                  <span className="timeline-three-icon">
-                    <MessageCircle size={10} aria-hidden="true" />
-                  </span>
-                </span>
-                <div className="timeline-three-content">
-                  <div className="timeline-three-byline">
-                    <div>
-                      <strong>{item.actor}</strong>
-                      {item.meta && <small>{item.meta}</small>}
-                    </div>
-                    <time
-                      dateTime={item.createdAt}
-                      title={
-                        date.format(new Date(item.createdAt)) +
-                        " " +
-                        time.format(new Date(item.createdAt))
-                      }
-                    >
-                      {time.format(new Date(item.createdAt))}
-                      {item.edited ? " · ແກ້ໄຂແລ້ວ" : ""}
-                    </time>
-                  </div>
-                  <div className="timeline-three-body">{item.content}</div>
-                </div>
-              </li>
+              <TimelineEntry key={item.id} item={item} />
             ))}
           </ol>
         </section>

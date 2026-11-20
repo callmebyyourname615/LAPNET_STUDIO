@@ -578,14 +578,49 @@ export class BusinessService {
       nextCursor: rows.length > q.limit ? encodeCursor(rows[q.limit - 1]) : null,
     };
   }
-  async commentAvatarAuthor(actor: string, id: string, commentId: string) {
-    await this.policy(actor, id);
+  async commentAuthor(actor: string, id: string, commentId: string, taskOnly = false) {
+    if (taskOnly) {
+      const task = await this.authorization.requireResource(actor, id, "view");
+      if (task.kind !== "task") throw new NotFoundException();
+    } else {
+      await this.policy(actor, id);
+    }
     const row = await this.database.client.resourceComment.findFirst({
       where: { id: commentId, resourceId: id, archivedAt: null },
       select: { authorId: true },
     });
     if (!row) throw new NotFoundException();
     return row.authorId;
+  }
+  async taskCommentProfile(actor: string, id: string, commentId: string) {
+    const authorId = await this.commentAuthor(actor, id, commentId, true);
+    const author = await this.database.client.user.findUniqueOrThrow({
+      where: { id: authorId },
+      select: {
+        displayName: true,
+        images: {
+          where: { kind: { in: ["avatar", "cover"] } },
+          select: { kind: true, revision: true },
+        },
+        memberships: {
+          where: { ...current(), department: { active: true } },
+          select: { department: { select: { name: true } } },
+          orderBy: { department: { code: "asc" } },
+        },
+      },
+    });
+    const imageUrl = (kind: "avatar" | "cover") => {
+      const image = author.images.find((item) => item.kind === kind);
+      return image
+        ? `/api/v1/resources/${id}/comments/${commentId}/${kind}?v=${image.revision}`
+        : null;
+    };
+    return {
+      displayName: author.displayName,
+      departments: author.memberships.map(({ department }) => department.name),
+      avatarUrl: imageUrl("avatar"),
+      coverUrl: imageUrl("cover"),
+    };
   }
   async comment(
     actor: string,

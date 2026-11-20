@@ -191,7 +191,7 @@ test("Host and shared task team", { skip: !process.env.TEST_IDENTITY_DATABASE_UR
       },
     );
     await t.test(
-      "Comment viewers see the author's avatar without access to their private account",
+      "Task comment viewers see the author profile without access to private account fields",
       async () => {
         const image = await sharp({
           create: { width: 32, height: 32, channels: 3, background: "#836bc5" },
@@ -240,6 +240,41 @@ test("Host and shared task team", { skip: !process.env.TEST_IDENTITY_DATABASE_UR
         assert.equal((await request(pc, "/api/v1/me/images/avatar")).status, 404);
         assert.equal(
           (await request(pc, avatarPath.split("?")[0].replace(/avatar$/, "cover"))).status,
+          404,
+        );
+        const coverUpload = await fetch(origin + "/api/v1/me/images/cover", {
+          method: "PUT",
+          headers: {
+            origin: process.env.APP_ORIGIN!,
+            cookie: hc.cookie,
+            "x-csrf-token": hc.csrf,
+            "content-type": "application/octet-stream",
+          },
+          body: new Uint8Array(image),
+        });
+        assert.equal(coverUpload.status, 200);
+        await coverUpload.arrayBuffer();
+        const profilePath = `/api/v1/resources/${id}/comments/${posted.value.id}/profile`;
+        const profile = await request(pc, profilePath);
+        assert.equal(profile.status, 200);
+        assert.deepEqual(Object.keys(profile.value).sort(), [
+          "avatarUrl",
+          "coverUrl",
+          "departments",
+          "displayName",
+        ]);
+        assert.equal(profile.value.displayName, host.displayName);
+        assert.equal(profile.value.avatarUrl, avatarPath);
+        const scopedCover = await fetch(origin + profile.value.coverUrl, {
+          headers: { cookie: pc.cookie },
+        });
+        assert.equal(scopedCover.status, 200);
+        assert.equal(scopedCover.headers.get("cache-control"), "private, no-store");
+        await scopedCover.arrayBuffer();
+        assert.equal((await request(oc, profilePath)).status, 404);
+        assert.equal((await request(oc, profile.value.coverUrl)).status, 404);
+        assert.equal(
+          (await request(pc, `/api/v1/resources/${id}/comments/${host.id}/profile`)).status,
           404,
         );
       },

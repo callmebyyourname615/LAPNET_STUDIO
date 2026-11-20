@@ -40,7 +40,11 @@ export const timeLabel = (value: string) =>
     timeZone: "Asia/Vientiane",
     calendar: "gregory",
   }).format(new Date(value));
-export function useTaskData<T>(path: string, schema: { parse: (value: unknown) => T }) {
+export function useTaskData<T>(
+  path: string,
+  schema: { parse: (value: unknown) => T },
+  refreshKey = 0,
+) {
   // Reloads keep usable content mounted. A new URL/schema must never show the old scope.
   const [epoch, setEpoch] = useState(0);
   const [result, setResult] = useState<{
@@ -50,7 +54,7 @@ export function useTaskData<T>(path: string, schema: { parse: (value: unknown) =
     data: T | null;
     error: string;
   } | null>(null);
-  const key = path + "\u0000" + epoch;
+  const key = `${path}\u0000${refreshKey}:${epoch}`;
   const reload = useCallback(() => setEpoch((value) => value + 1), []);
   useEffect(() => {
     const controller = new AbortController();

@@ -334,12 +334,6 @@ details[open] > summary > .task-disclosure-icon { rotate: 90deg; }
   display: grid;
   gap: 12px;
 }
-.task-detail-description {
-  margin-block-start: 16px;
-  padding-block-start: 14px;
-  border-block-start: 1px solid var(--color-border-subtle);
-}
-.task-detail-description h3 { font-weight: 600; }
 .task-workspace .detail-list { overflow-wrap: anywhere; }
 @media (max-width: 1040px) {
   .task-workspace-header { grid-template-columns: auto minmax(0, 1fr); }

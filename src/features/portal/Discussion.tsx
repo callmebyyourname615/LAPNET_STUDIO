@@ -1,7 +1,7 @@
-import { MentionTextarea } from "./MentionTextarea";
+import { MentionTextarea, type MentionTextareaHandle } from "./MentionTextarea";
 import type { SelectedMention } from "./mention-text";
 export type { Mention, SelectedMention } from "./mention-text";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { commentsSchema } from "@lapnet/contracts";
 import Timeline3 from "@/components/ui/timeline-3";
@@ -121,6 +121,8 @@ export function Comments({
   onOpen,
   canInvite = false,
   onChanged,
+  refreshKey,
+  onViewProfile,
 }: {
   id: string;
   canComment: boolean;
@@ -128,6 +130,8 @@ export function Comments({
   onOpen?: () => void;
   canInvite?: boolean;
   onChanged?: () => void;
+  refreshKey?: number;
+  onViewProfile?: (commentId: string) => void;
 }) {
   const { me } = useAuth();
   const preview = !!onOpen;
@@ -135,10 +139,12 @@ export function Comments({
   const [editing, setEditing] = useState("");
   const [mentions, setMentions] = useState<SelectedMention[]>([]);
   const [draft, setDraft] = useState("");
+  const taskComposer = useRef<MentionTextareaHandle>(null);
   const path = `/api/v1/resources/${id}/comments`;
   const { data, loading, error, reload } = useTaskData(
     `${path}?limit=${preview ? 2 : 15}${cursors.length ? "&cursor=" + cursors.at(-1) : ""}`,
     commentsSchema,
+    refreshKey,
   );
   const composer = canComment && !preview && (
     <SimpleForm
@@ -156,6 +162,7 @@ export function Comments({
     >
       {taskStyle ? (
         <MentionTextarea
+          ref={taskComposer}
           resourceId={id}
           label="ລາຍງານຄວາມຄືບໜ້າ"
           value={draft}
@@ -243,6 +250,21 @@ export function Comments({
             edited: row.revision > 1,
             meta: row.author.departments.map(t).join(" · "),
             content: renderContent(row),
+            profile:
+              me && row.author.id !== me.user.id && onViewProfile
+                ? {
+                    onView: () => onViewProfile(row.id),
+                    onMention:
+                      canComment && !preview && row.author.status === "active"
+                        ? () =>
+                            taskComposer.current?.mention({
+                              type: "user",
+                              id: row.author.id,
+                              name: row.author.displayName,
+                            })
+                        : undefined,
+                  }
+                : undefined,
           }))}
         />
       )}

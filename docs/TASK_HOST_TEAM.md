@@ -46,3 +46,9 @@ Timeline ເອກະສານໃຊ້ ReUI `src/components/reui/timeline.tsx`,
 Migration: `202611180005_task_host_team`. ສຳຮອງ local DB ກ່ອນ migrate. ບໍ່ລຶບຂໍ້ມູນເກົ່າ.
 
 ກວດດ້ວຍ `pnpm test:tasks`, `pnpm test:team`, `pnpm test:identity`, `pnpm test:documents`, `pnpm test:account`, `pnpm test:audit`, TypeScript, lint, format ແລະ build. Browser ທົດສອບ Host ສ້າງວຽກ/ເຊີນ, member ຂຽນຄວາມຄືບໜ້າ, Timeline ຈິງ ແລະຈໍ 320/375/768px ໃນ disposable DB. ຫຼັກຖານທ້ອງຖິ່ນ: `output/playwright/task-team-timeline-results.json` ແລະ `.local/traces/task-team-timeline.zip` (ignored).
+
+## ທົດລອງໃຊ້ກັບທີມຂະໜາດນ້ອຍ
+
+ໜ້າພາບລວມສະແດງລາຍລະອຽດວຽກເທິງສຸດ. ປຸ່ມໂຫຼດໃໝ່ອັບເດດສະຖານະ, ປະຫວັດ, ເອກະສານ ແລະຄວາມຄິດເຫັນໂດຍຮັກສາຮ່າງທີ່ກຳລັງພິມ. Playwright ໃຊ້ບັນຊີທົດລອງໃນ disposable DB ເພື່ອກວດຈາກການມອບໝາຍຈົນເຖິງປິດວຽກ, ລວມເຖິງການແນບ ແລະ ດາວໂຫຼດ PDF ທີ່ຜ່ານ ClamAV.
+
+ກົດຊື່ ຫຼື ຮູບຂອງຜູ້ຂຽນເພື່ອເລືອກ **View Profile** ຫຼື **ກ່າວເຖິງໃນວຽກນີ້**. ໜ້າໂປຣໄຟລ໌ໃຊ້ໂຄງໜ້າ Settings ສຳລັບການອ່ານ ແລະເປີດຜ່ານ comment ໃນ Task ທີ່ຜູ້ເບິ່ງມີສິດ. API ສົ່ງສະເພາະຊື່ສະແດງ, ພະແນກ, ຮູບໂປຣໄຟລ໌ ແລະ ຮູບປົກ. ຂໍ້ມູນບັນຊີ ແລະຂໍ້ມູນຕິດຕໍ່ຢູ່ໃນ Settings ຂອງເຈົ້າຂອງບັນຊີ.

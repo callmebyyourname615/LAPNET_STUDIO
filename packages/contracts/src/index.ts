@@ -433,6 +433,12 @@ export const commentsSchema = z.object({
   items: z.array(commentSchema),
   nextCursor: z.string().nullable(),
 });
+export const taskCommentProfileSchema = z.object({
+  displayName: z.string(),
+  departments: z.array(z.string()),
+  avatarUrl: z.string().nullable(),
+  coverUrl: z.string().nullable(),
+});
 export const versionsSchema = z.array(
   z.object({
     id: z.uuid(),
