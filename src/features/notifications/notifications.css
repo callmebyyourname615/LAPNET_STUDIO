@@ -334,16 +334,7 @@
   cursor: not-allowed;
 }
 .notify-page {
-  max-width: var(--size-notification-page);
-  margin-inline: auto;
   min-width: 0;
-}
-.notify-page-heading {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--space-notification-section);
-  margin-bottom: var(--space-notification-section);
 }
 .notify-page-heading > div {
   display: grid;

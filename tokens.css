@@ -145,7 +145,6 @@
 /* Notifications: preserve Portal colors, type and focus; compact preview + full inbox. */
 :root {
   --size-notification-popover: 30rem;
-  --size-notification-page: 76rem;
   --size-notification-sidebar: 16rem;
   --size-notification-target: 2.75rem;
   --size-notification-avatar: 2.5rem;

@@ -503,7 +503,7 @@ export function NotificationInbox({ go, children }: { go: Go; children?: ReactNo
   const label = view === "comments" ? "ຄວາມຄິດເຫັນ" : tabs.find((tab) => tab.id === view)?.label;
   return (
     <div className="notify-page" ref={root}>
-      <header className="notify-page-heading">
+      <header className="page-header notify-page-heading">
         <div>
           <span className="notify-page-symbol">
             <BellRing size={22} aria-hidden="true" />
