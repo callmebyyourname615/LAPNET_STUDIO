@@ -58,4 +58,8 @@ Move dialogs offer folders in the document's owning department, matching API enf
 
 Verification for this update: document integration 14/14, identity 16/16, tasks 16/16, foundation 10/10, module browser audit 36 checks, existing PDF workflow 25 checks, PDF pagination/failure/retry checks, plus TypeScript/build/lint/format and regenerated OpenAPI. Integration suites run through their disposable-database commands; plain `pnpm test` skips those three suites. The legacy `pnpm test:business` command cannot run because `business.integration.test.ts` is absent in this checkout.
 
-Local scanner setup remains unresolved: the official signature download returned HTTP 403 on 17 November 2026. The incomplete Homebrew install was stopped; no scanner configuration or scan-state bypass was applied. New uploads remain quarantined/scan-failed until a real scanner with current signatures is available. Existing available files remain usable.
+## Local ClamAV verification — 20 November 2026
+
+The local macOS Portal uses Homebrew ClamAV 1.5.5 with a private socket under `~/.lapnet-portal/clamav`. User LaunchAgents `local.lapnet-portal.clamd` and `local.lapnet-portal.freshclam` start the scanner at sign-in and check for signature updates every two hours. The worker reads `CLAMD_SOCKET` and `CLAMAV_SIGNATURE_FILE` from the local `.env`. The latter points to `daily-signatures`, a symlink to the current daily CVD or CLD file. The local updater follows the file when its extension changes.
+
+The real scanner accepted a clean PDF and detected the standard EICAR test file. In a disposable database, Playwright verified that a Task member could upload a PDF, the Host could preview and download the scanned bytes from Document workspace, and **Retry scan** recovered an upload after a simulated scanner outage. For earlier failed uploads, a user with edit access can try **Document workspace → Versions → Retry scan**. These results cover the local Mac setup.
